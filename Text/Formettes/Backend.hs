@@ -6,6 +6,18 @@ import           Data.Text   (Text)
 import qualified Data.Text   as T
 import Text.Formettes.Result (FormId)
 
+data CommonFormError input
+    = InputMissing FormId
+    | NoStringFound input
+    | NoFileFound input
+    | MultiFilesFound input
+    | MultiStringsFound input
+      deriving (Eq, Ord, Show)
+
+class FormError e where
+    type ErrorInputType e
+    commonFormError :: (CommonFormError (ErrorInputType e)) -> e
+
 -- | Class which all backends should implement. @i@ is here the type that is
 -- used to represent a value uploaded by the client in the request
 --
@@ -14,7 +26,7 @@ class FormInput input where
     -- | Parse the input into a string. This is used for simple text fields
     -- among other things
     --
-    getInputString :: (FormError e, ErrorInputType e ~ input) => input -> Either e String
+    getInputString :: (FormError error, ErrorInputType error ~ input) => input -> Either error String
     getInputString input =
            case getInputStrings input of
              []  -> Left (commonFormError $ NoStringFound input)
@@ -27,8 +39,13 @@ class FormInput input where
 
     -- | Parse the input value into 'Text'
     --
-    getInputText :: input -> Maybe Text
-    getInputText = listToMaybe . getInputTexts
+    getInputText :: (FormError error, ErrorInputType error ~ input) => input -> Either error Text
+    getInputText input =
+           case getInputTexts input of
+             []  -> Left (commonFormError $ NoStringFound input)
+             [s] -> Right s
+             _   -> Left (commonFormError $ MultiStringsFound input)
+
 
     -- | Can be overriden for efficiency concerns
     --
@@ -37,14 +54,4 @@ class FormInput input where
 
     -- | Get a file descriptor for an uploaded file
     --
-    getInputFile :: input -> Maybe (FileType input)
-
-data CommonFormError input
-    = InputMissing FormId
-    | NoStringFound input
-    | MultiStringsFound input
-      deriving (Eq, Ord, Show)
-
-class FormError e where
-    type ErrorInputType e
-    commonFormError :: (CommonFormError (ErrorInputType e)) -> e
+    getInputFile :: (FormError error, ErrorInputType error ~ input) => input -> Either error (FileType input)

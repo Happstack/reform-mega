@@ -1,8 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
 module Text.Formettes.Core where
 
-import Control.Arrow          (first)
-import Control.Monad          (MonadPlus(mplus), liftM, liftM2)
+import Control.Applicative    (Applicative(pure, (<*>)))
+import Control.Arrow          (first, second)
 import Control.Monad.Reader   (MonadReader(ask), ReaderT, runReaderT)
 import Control.Monad.State    (MonadState(get,put), StateT, evalStateT)
 import Control.Monad.Trans    (lift)
@@ -23,6 +23,9 @@ data Proved proofs a =
            , pos      :: FormRange
            , unProved :: a
            }
+
+instance Functor (Proved ()) where
+    fmap f (Proved () pos a) = Proved () pos (f a)
 
 unitProved :: FormId -> Proved () ()
 unitProved formId =
@@ -99,8 +102,8 @@ incFormId = do
 -- | A view represents a visual representation of a form. It is composed of a
 -- function which takes a list of all errors and then produces a new view
 --
-newtype View e v = View
-    { unView :: [(FormRange, e)] -> v
+newtype View error v = View
+    { unView :: [(FormRange, error)] -> v
     } deriving (Monoid)
 
 instance Functor (View e) where
@@ -140,6 +143,37 @@ instance (Monoid view, Monad m) => IndexedApplicative (Form m input error view) 
                                                                            , pos      = FormRange x y
                                                                            , unProved = f a
                                                                            })
+
+instance (Functor m) => Functor (Form m input error view ()) where
+    fmap f form =
+        Form $ fmap (second (fmap (fmap (fmap f)))) (unForm form)
+
+
+instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error view ()) where
+    pure a =
+      Form $
+        do i <- getFormId
+           return (View $ const $ mempty, return $ Ok $ Proved { proofs    = ()
+                                                               , pos       = FormRange i i
+                                                               , unProved  = a
+                                                               })
+    -- this coud be defined in terms of <+*+> if we just changed the proof of frmF to (() -> ())
+    (Form frmF) <*> (Form frmA) =
+       Form $
+         do (xml1, mfok) <- frmF
+            incFormId
+            (xml2, maok) <- frmA
+            fok <- lift $ lift $ mfok
+            aok <- lift $ lift $ maok
+            case (fok, aok) of
+              (Error errs1, Error errs2) -> return (xml1 `mappend` xml2, return $ Error $ errs1 ++ errs2)
+              (Error errs1, _)           -> return (xml1 `mappend` xml2, return $ Error $ errs1)
+              (_          , Error errs2) -> return (xml1 `mappend` xml2, return $ Error $ errs2)
+              (Ok (Proved p (FormRange x _) f), Ok (Proved q (FormRange _ y) a)) ->
+                  return (xml1 `mappend` xml2, return $ Ok $ Proved { proofs   = ()
+                                                                    , pos      = FormRange x y
+                                                                    , unProved = f a
+                                                                    })
 
 -- * Ways to evaluate a Form
 

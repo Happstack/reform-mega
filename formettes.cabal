@@ -18,6 +18,7 @@ Library
                        Text.Formettes.Core
                        Text.Formettes.Generalized
                        Text.Formettes.Happstack
+                       Text.Formettes.Heist
                        Text.Formettes.Proof
                        Text.Formettes.Result
   Build-depends:       base             >= 4 && <5,

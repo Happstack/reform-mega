@@ -7,6 +7,7 @@ data DemoFormError input
     = CommonError (CommonFormError input)
     | InvalidUsername
     | InvalidEmail
+      deriving (Show)
 
 instance FormError (DemoFormError input) where
     type ErrorInputType (DemoFormError input) = input

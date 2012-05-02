@@ -26,17 +26,17 @@ usernameForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
 usernameForm initialValue =
     errorList ++> (label "username: " ++> (Username <+$+> inputString initialValue `prove` (notNullProof InvalidUsername)))
 
-emailFormBlaze :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
+emailForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                   String
                -> Form m input (DemoFormError input) Html ValidEmail Email
-emailFormBlaze initialValue    =
+emailForm initialValue    =
     errorList ++> (label "email: " ++> (Email    <+$+> inputString initialValue `prove` (validEmailProof InvalidEmail)))
 
 userForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
             String -- ^ initial username
          -> String -- ^ initial email
          -> Form m input (DemoFormError input) Html ValidUser User
-userForm nm eml = mkUser <+*+> (usernameForm nm) <+*+> (emailFormBlaze eml)
+userForm nm eml = mkUser <+*+> (usernameForm nm) <+*+> (emailForm eml)
 
 blazeResponse :: Html -> Response
 blazeResponse html = toResponseBS (C.pack "text/html;charset=UTF-8") $ renderHtml html
@@ -64,9 +64,8 @@ formHandler form =
 
              ]
 
-mainBlaze :: IO ()
-mainBlaze =
+main :: IO ()
+main =
     do let form = userForm "" ""
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
                                 formHandler form
-
