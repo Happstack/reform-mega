@@ -24,7 +24,7 @@ instance FormInput [Input] where
 environment :: (Happstack m) => Environment m [Input]
 environment =
     Environment $ \formId ->
-        do mv <- optional $ lookInputs (show formId)
-           case mv of
-             Nothing  -> return $ Missing
-             (Just a) -> return $ Found a
+        do ins <- lookInputs (show formId)
+           case ins of
+             []  -> return $ Missing
+             _   -> return $ Found ins
