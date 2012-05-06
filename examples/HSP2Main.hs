@@ -36,12 +36,12 @@ data Vice
     | Drugs
     | RockAndRoll
       deriving (Show, Eq, Enum)
-{-
+
 vices :: [Vice] -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () [Vice]
 vices vs = inputCheckboxes $ map mkVice [Sex .. RockAndRoll]
     where
       mkVice v = (v, show v, v `elem` vs)
--}
+
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
     [<form action="/" method="POST" enctype="multipart/form-data">
@@ -71,6 +71,7 @@ formHandler form =
 main :: IO ()
 main =
     do let greekForm = (greek $ Greek False True False)
-           -- viceForm  = vices [Sex, RockAndRoll]
+           viceForm  = vices [Sex, RockAndRoll]
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
-                                formHandler greekForm
+                                formHandler viceForm
+

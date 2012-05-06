@@ -4,15 +4,14 @@ module Text.Formettes.HSP where
 
 import qualified Data.Traversable as T
 import Data.Maybe
+import qualified Data.IntMap as I
+import Numeric
 import Text.Formettes
 import qualified Text.Formettes.Generalized as G
 import HSX.XMLGenerator
 
 instance (EmbedAsAttr m (Attr String String)) => (EmbedAsAttr m (Attr String FormId)) where
     asAttr (n := v) = asAttr (n := show v)
-
--- instance EmbedAsAttr m (Attr String String) => EmbedAsAttr m (Attr String FormId) where
---    asAttr (n := fid) = asAttr (n := (show fid))
 
 label :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x c, Monad m) =>
          c
@@ -56,6 +55,75 @@ inputCheckbox initiallyChecked =
                                        , unProved = if checked then True else False
                                        })
                  )
+
+inputCheckboxes :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+                   [(a, lbl, Bool)]  -- ^ value, label, initially checked
+                -> Form m input error [XMLGenT x (XMLType x)] () [a]
+inputCheckboxes choices =
+    Form $ do i <- getFormId
+              v <- getFormInput' i
+              case v of
+                Default ->
+                    do let vals = mapMaybe (\(a,_,checked) -> if checked then Just a else Nothing) choices
+                       buttons  <- mkCheckboxes i choices
+                       return ( View $ const $ buttons
+                              , return $ Ok (Proved { proofs   = ()
+                                                    , pos      = unitRange i
+                                                    , unProved = vals
+                                       })
+                              )
+                Missing -> -- can happen if no choices where checked
+                     do buttons <- mkCheckboxes i choices
+                        return ( View $ const $ buttons
+                              , return $ Ok (Proved { proofs   = ()
+                                                    , pos      = unitRange i
+                                                    , unProved = []
+                                                    })
+                               )
+                (Found v) ->
+                    do buttons <- mkCheckboxes i choices
+                       let readDec' str = case readDec str of
+                                            [(n,[])] -> n
+                           keys   = map readDec' $ getInputStrings v
+                           intMap = I.fromAscList $ zipWith (\i (a, _,_) -> (i, a)) [0..] choices
+                           vals   = mapMaybe (\i -> I.lookup i intMap) keys
+                       return ( View $ const $ buttons
+                              , return $ Ok (Proved { proofs   = ()
+                                                    , pos      = unitRange i
+                                                    , unProved = vals
+                                                    })
+                              )
+    where
+      mkCheckboxes i choices = fmap concat $ mapM (mkCheckbox i) (zip [0..] choices)
+
+      mkCheckbox :: (Monad m, XMLGenerator x, EmbedAsChild x lbl) => FormId -> (Integer, (a, lbl, Bool)) -> FormState m input [XMLGenT x (XMLType x)]
+      mkCheckbox nm (vl, (_,lbl,checked)) =
+          do i' <- getFormId
+             return $ [ <input type="checkbox" id=i' name=nm value=(show vl) (if checked then [("checked" := "checked")] else []) />
+                      , <label for=i'><% lbl %></label>
+                      ]
+
+
+{-
+      mkRadios i choices = fmap concat $ mapM (mkRadio i) (zip [1..] choices)
+
+      mkRadio :: (Monad m, XMLGenerator x) => FormId -> (Integer, (a, lbl, Bool)) -> FormState m input [XMLGenT x (XMLType x)]
+      mkRadio nm (vl, (_,lbl,checked)) =
+          do i' <- getFormId
+             return $ [ <input type="radio" id=i' name=nm value=(show vl) (if checked then [("checked" := "checked")] else []) /> ]
+-}
+
+--                        html = [
+{-
+                    let vals = mapMaybe (\(a,_,checked) -> if checked then Just a else Nothing) values
+                    in (View $ const $ 
+
+              let values' = zip [0..] values
+              undefined
+        where
+          inputCheckbox 
+-}
+
 
 {-
 inputCheckboxes :: (Functor m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x lbl, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
