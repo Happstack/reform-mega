@@ -60,6 +60,16 @@ inputCheckboxes :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x
                    [(a, lbl, Bool)]  -- ^ value, label, initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
 inputCheckboxes choices =
+    G.inputMulti choices mkCheckboxes
+    where
+      mkCheckboxes nm choices' = concatMap (mkCheckbox nm) choices'
+      mkCheckbox nm (i, val, lbl, checked) =
+             [ <input type="checkbox" id=i name=nm value=(show val) (if checked then [("checked" := "checked")] else []) />
+             , <label for=i><% lbl %></label>
+             ]
+
+{-
+inputCheckboxes choices =
     Form $ do i <- getFormId
               v <- getFormInput' i
               case v of
@@ -102,7 +112,7 @@ inputCheckboxes choices =
              return $ [ <input type="checkbox" id=i' name=nm value=(show vl) (if checked then [("checked" := "checked")] else []) />
                       , <label for=i'><% lbl %></label>
                       ]
-
+-}
 
 {-
       mkRadios i choices = fmap concat $ mapM (mkRadio i) (zip [1..] choices)

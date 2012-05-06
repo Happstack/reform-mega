@@ -259,3 +259,17 @@ mapView :: (Monad m, Functor m)
         -> Form m input error view  proof a  -- ^ Initial form
         -> Form m input error view' proof a  -- ^ Resulting form
 mapView f = Form . fmap (first $ fmap f) . unForm
+
+
+mkRet :: (Monad m) =>
+         FormId
+      -> view
+      -> a
+      -> FormState m input (View error view, m (Result error (Proved () a)))
+mkRet i view val =
+          return ( View $ const $ view
+                 , return $ Ok (Proved { proofs   = ()
+                                       , pos      = unitRange i
+                                       , unProved = val
+                                       })
+                 )
