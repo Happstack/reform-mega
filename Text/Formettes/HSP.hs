@@ -68,6 +68,23 @@ inputCheckboxes choices =
              , <label for=i><% lbl %></label>
              ]
 
+inputMultiSelect :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+                   [(a, lbl, Bool)]  -- ^ value, label, initially checked
+                -> Form m input error [XMLGenT x (XMLType x)] () [a]
+inputMultiSelect choices =
+    G.inputMulti choices mkSelect
+    where
+      mkSelect nm choices' =
+          [<select name=nm multiple="multiple">
+            <% mapM mkOption choices' %>
+           </select>
+          ]
+      mkOption (_, val, lbl, selected) =
+          <option value=val (if selected then ["selected" := "selected"] else [])>
+           <% lbl %>
+          </option>
+
+
 {-
 inputCheckboxes choices =
     Form $ do i <- getFormId

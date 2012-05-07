@@ -42,6 +42,12 @@ vices vs = inputCheckboxes $ map mkVice [Sex .. RockAndRoll]
     where
       mkVice v = (v, show v, v `elem` vs)
 
+vices2 :: [Vice] -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () [Vice]
+vices2 vs = inputMultiSelect $ map mkVice [Sex .. RockAndRoll]
+    where
+      mkVice v = (v, show v, v `elem` vs)
+
+
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
     [<form action="/" method="POST" enctype="multipart/form-data">
@@ -59,10 +65,15 @@ formHandler form =
                   ok $ toResponse $ html
 
              , do method POST
-                  r <- eitherForm "user" environment form
+                  (view, r) <- runForm' "user" environment form
                   case r of
-                    (Right a) -> ok $ toResponse $ show a
-                    (Left view) ->
+                    (Just a) ->
+                        do html <- unXMLGenT $ <html>
+                                                 <% show a %>
+                                                 <% hsxForm $ view %>
+                                               </html>
+                           ok $ toResponse $ html
+                    Nothing ->
                         do html <- unXMLGenT $ <html><% hsxForm $ view %></html>
                            ok $ toResponse $ html
 
@@ -70,8 +81,9 @@ formHandler form =
 
 main :: IO ()
 main =
-    do let greekForm = (greek $ Greek False True False)
-           viceForm  = vices [Sex, RockAndRoll]
+    do let greekForm  = (greek $ Greek False True False)
+           viceForm   = vices [Sex, RockAndRoll]
+           vice2Form  = vices2 [Sex, RockAndRoll]
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
-                                formHandler viceForm
+                                formHandler vice2Form
 

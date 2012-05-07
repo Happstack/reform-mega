@@ -187,6 +187,19 @@ runForm :: (Monad m) =>
 runForm prefix env form =
     evalStateT (runReaderT (unForm form) env) (unitRange (zeroId prefix))
 
+-- | Run a form
+--
+runForm' :: (Monad m) =>
+           String
+        -> Environment m input
+        -> Form m input error view proof a
+        -> m (view , Maybe a)
+runForm' prefix env form =
+    do (view', mresult) <- runForm prefix env form
+       result <- mresult
+       return $ case result of
+                  Error e  -> (unView view' e , Nothing)
+                  Ok x     -> (unView view' [], Just (unProved x))
 
 -- | Just evaluate the form to a view. This usually maps to a GET request in the
 -- browser.

@@ -2,7 +2,7 @@
 module Text.Formettes.Generalized where
 
 import Control.Applicative    ((<$>))
-import qualified Data.IntMap  as I
+import qualified Data.IntSet  as IS
 import Data.Maybe             (mapMaybe)
 import Numeric                (readDec)
 import Text.Formettes.Backend
@@ -40,6 +40,7 @@ input fromInput toView initialValue =
                            )
 
 
+-- | checkboxes, multi-select boxes
 inputMulti :: (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
                    [(a, lbl, Bool)]                                -- ^ value, label, initially checked
                 -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
@@ -47,19 +48,26 @@ inputMulti :: (Functor m, FormError error, ErrorInputType error ~ input, FormInp
 inputMulti choices mkView =
     Form $ do i <- getFormId
               inp <- getFormInput' i
-              view <- mkView i <$> augmentChoices choices
               case inp of
                 Default ->
-                    do let vals = mapMaybe (\(a,_,checked) -> if checked then Just a else Nothing) choices
+                    do view <- mkView i <$> augmentChoices choices
+                       let vals = mapMaybe (\(a,_,checked) -> if checked then Just a else Nothing) choices
                        mkRet i view vals
                 Missing -> -- can happen if no choices where checked
-                     do mkRet i view []
+                     do view <- mkView i <$> augmentChoices choices
+                        mkRet i view []
                 (Found v) ->
                     do let readDec' str = case readDec str of
                                             [(n,[])] -> n
-                           keys   = map readDec' $ getInputStrings v
-                           intMap = I.fromAscList $ zipWith (\i (a, _,_) -> (i, a)) [0..] choices
-                           vals   = mapMaybe (\i -> I.lookup i intMap) keys
+                                            _ -> (-1) -- FIXME: should probably return an internal error?
+                           keys   = IS.fromList $ map readDec' $ getInputStrings v
+                           (choices', vals) =
+                               foldr (\(i, (a,lbl,_)) (c,v) ->
+                                          if IS.member i keys
+                                          then ((a,lbl,True) : c, a : v)
+                                          else ((a,lbl,False): c,     v)) ([],[]) $
+                                 zip [0..] choices
+                       view <- mkView i <$> augmentChoices choices'
                        mkRet i view vals
 
     where
@@ -70,6 +78,40 @@ inputMulti choices mkView =
       augmentChoice (vl, (a, lbl, checked)) =
           do i <- getFormId
              return (i, vl, lbl, checked)
+
+{-
+-- | radio buttons, single-select boxes
+inputChoice :: (Eq a, Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+               Maybe a
+            -> [(a, lbl)]                                      -- ^ value, label
+            -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
+            -> Form m input error view () (Maybe a)
+inputChoice def choices mkView =
+    Form $ do i <- getFormId
+              inp <- getFormInput' i
+              view <- mkView i <$> augmentChoices choices
+              case inp of
+                Default ->
+                    do mkRet i view def
+                Missing -> -- can happen if no choices where checked
+                     do mkRet i def
+                (Found v) ->
+                    do let readDec' str = case readDec str of
+                                            [(n,[])] -> n
+                                            _ -> (-1) -- FIXME: should probably return an internal error?
+                           key = map readDec' $ getInputString v
+                           val = lookup key  $ zipWith (\i (a, _,_) -> (i, a)) [0..] choices
+                       mkRet i view val
+
+    where
+      augmentChoices :: (Monad m) => [(a, lbl, Bool)] -> FormState m input [(FormId, Int, lbl, Bool)]
+      augmentChoices choices = mapM augmentChoice (zip [0..] choices)
+
+      augmentChoice :: (Monad m) => (Int, (a, lbl, Bool)) -> FormState m input (FormId, Int, lbl, Bool)
+      augmentChoice (vl, (a, lbl)) =
+          do i <- getFormId
+             return (i, vl, lbl, checked)
+-}
 {-
       mkCheckbox :: (Monad m, XMLGenerator x, EmbedAsChild x lbl) => FormId -> (Integer, (a, lbl, Bool)) -> FormState m input [XMLGenT x (XMLType x)]
       mkCheckbox nm (vl, (_,lbl,checked)) =
