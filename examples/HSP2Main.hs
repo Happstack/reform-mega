@@ -100,9 +100,8 @@ formHandler form =
 main :: IO ()
 main =
     do let greekForm  = (greek $ Greek False True False)
-           viceForm   = vices [Sex, RockAndRoll]
+           viceForm   = vices  [Sex, RockAndRoll]
            vice2Form  = vices2 [Sex, RockAndRoll]
            starsForm  = stars TwoStars
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
                                 formHandler starsForm
-

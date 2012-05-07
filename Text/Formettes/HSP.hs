@@ -4,6 +4,7 @@ module Text.Formettes.HSP where
 
 import qualified Data.Traversable as T
 import Data.Maybe
+import Data.Text (Text)
 import qualified Data.IntMap as I
 import Numeric
 import Text.Formettes
@@ -30,6 +31,30 @@ inputString initialValue = G.input getInputString inputField initialValue
                     (Found s') -> s'
                     _          -> def
           in [<input type="text" id=i name=i value=s />]
+
+inputText :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+               Text
+            -> Form m input error [XMLGenT x (XMLType x)] () Text
+inputText initialValue = G.input getInputText inputField initialValue
+    where
+      inputField i mv def =
+          let s = case mv of
+                    (Found s') -> s'
+                    _          -> def
+          in [<input type="text" id=i name=i value=s />]
+
+inputText :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+               Text
+            -> Form m input error [XMLGenT x (XMLType x)] () Text
+inputText initialValue = G.input getInputText inputField initialValue
+    where
+      inputField i mv def =
+          let s = case mv of
+                    (Found s') -> s'
+                    _          -> def
+          in [<input type="text" id=i name=i value=s />]
+
+
 
 -- | inputCheckbox is useful when you want a checkbox that just returns a True/False value
 

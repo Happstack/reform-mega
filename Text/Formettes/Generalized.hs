@@ -12,10 +12,41 @@ import Text.Formettes.Result
 
 input :: (Monad m, FormError error) =>
          (input -> Either error a)
+      -> (FormId -> a -> view)
+      -> a
+      -> Form m input error view () a
+input fromInput toView initialValue =
+    Form $ do i <- getFormId
+              v <- getFormInput' i
+              case v of
+                Default ->
+                    return ( View $ const $ toView i initialValue
+                           , return $ Ok (Proved { proofs   = ()
+                                                 , pos      = unitRange i
+                                                 , unProved = initialValue
+                                                 }))
+                (Found (fromInput -> (Right a))) ->
+                    return ( View $ const $ toView i a
+                           , return $ Ok (Proved { proofs   = ()
+                                                 , pos      = unitRange i
+                                                 , unProved = a
+                                                 }))
+                (Found (fromInput -> (Left error))) ->
+                    return ( View $ const $ toView i initialValue
+                           , return $ Error [(unitRange i, error)]
+                           )
+                Missing ->
+                    return ( View $ const $ toView i initialValue
+                           , return $ Error [(unitRange i, commonFormError (InputMissing i))]
+                           )
+
+
+input' :: (Monad m, FormError error) =>
+         (input -> Either error a)
       -> (FormId -> Value a -> a -> v)
       -> a
       -> Form m input error v () a
-input fromInput toView initialValue =
+input' fromInput toView initialValue =
     Form $ do i <- getFormId
               v <- getFormInput' i
               case v of
@@ -25,11 +56,11 @@ input fromInput toView initialValue =
                                                  , pos      = unitRange i
                                                  , unProved = initialValue
                                                  }))
-                (Found (fromInput -> (Right str))) ->
-                    return ( View $ const $ toView i (Found str) initialValue
+                (Found (fromInput -> (Right a))) ->
+                    return ( View $ const $ toView i (Found a) initialValue
                            , return $ Ok (Proved { proofs   = ()
                                                  , pos      = unitRange i
-                                                 , unProved = str
+                                                 , unProved = a
                                                  }))
                 (Found (fromInput -> (Left error))) ->
                     return ( View $ const $ toView i Missing initialValue
@@ -40,6 +71,26 @@ input fromInput toView initialValue =
                            , return $ Error [(unitRange i, commonFormError (InputMissing i))]
                            )
 
+inputReset :: (Monad m) =>
+              (FormId -> a -> view)
+           -> a
+           -> Form m input error view () ()
+inputReset toView a =
+    Form $ do i <- getFormId
+              return ( View $ const $ toView i a
+                     , return $ Ok (Proved { proofs   = ()
+                                           , pos      = unitRange i
+                                           , unProved = ()
+                                           })
+                     )
+
+inputFile :: (Monad m, FormError error) =>
+             (FormId -> view)
+          -> Form m input error view () (Maybe (FileType input))
+inputFile toView = input getFile mkView Nothing
+    where
+      getFile    = undefined
+      mkView i _ = toView i
 
 -- | checkboxes, multi-select boxes
 inputMulti :: (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
