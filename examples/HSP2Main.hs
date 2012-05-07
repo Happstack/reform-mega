@@ -47,6 +47,24 @@ vices2 vs = inputMultiSelect $ map mkVice [Sex .. RockAndRoll]
     where
       mkVice v = (v, show v, v `elem` vs)
 
+data Stars
+    = OneStar
+    | TwoStars
+    | ThreeStars
+    | FourStars
+    | FiveStars
+      deriving (Eq, Enum)
+
+instance Show Stars where
+    show OneStar    = "★"
+    show TwoStars   = "★★"
+    show ThreeStars = "★★★"
+    show FourStars  = "★★★★"
+    show FiveStars  = "★★★★★"
+
+stars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () (Maybe Stars)
+stars def =
+    inputRadio (== def) [(s, show s) | s <- [OneStar .. FiveStars]]
 
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
@@ -84,6 +102,7 @@ main =
     do let greekForm  = (greek $ Greek False True False)
            viceForm   = vices [Sex, RockAndRoll]
            vice2Form  = vices2 [Sex, RockAndRoll]
+           starsForm  = stars TwoStars
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
-                                formHandler vice2Form
+                                formHandler starsForm
 

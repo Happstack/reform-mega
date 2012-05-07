@@ -68,6 +68,20 @@ inputCheckboxes choices =
              , <label for=i><% lbl %></label>
              ]
 
+inputRadio :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+              (a -> Bool) -- ^ isDefault
+           -> [(a, lbl)]  -- ^ value, label, initially checked
+           -> Form m input error [XMLGenT x (XMLType x)] () (Maybe a)
+inputRadio isDefault choices =
+    G.inputChoice isDefault choices mkRadios
+    where
+      mkRadios nm choices' = concatMap (mkRadio nm) choices'
+      mkRadio nm (i, val, lbl, checked) =
+             [ <input type="radio" id=i name=nm value=(show val) (if checked then [("checked" := "checked")] else []) />
+             , <label for=i><% lbl %></label>
+             , <br />
+             ]
+
 inputMultiSelect :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
                    [(a, lbl, Bool)]  -- ^ value, label, initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]

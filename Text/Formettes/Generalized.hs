@@ -1,8 +1,9 @@
-{-# LANGUAGE TypeFamilies, ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, TypeFamilies, ViewPatterns #-}
 module Text.Formettes.Generalized where
 
 import Control.Applicative    ((<$>))
 import qualified Data.IntSet  as IS
+import Data.List              (find)
 import Data.Maybe             (mapMaybe)
 import Numeric                (readDec)
 import Text.Formettes.Backend
@@ -79,39 +80,61 @@ inputMulti choices mkView =
           do i <- getFormId
              return (i, vl, lbl, checked)
 
-{-
+
 -- | radio buttons, single-select boxes
-inputChoice :: (Eq a, Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
-               Maybe a
+inputChoice :: forall a m error input lbl view. (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+               (a -> Bool)                                     -- ^ is default
             -> [(a, lbl)]                                      -- ^ value, label
             -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
             -> Form m input error view () (Maybe a)
-inputChoice def choices mkView =
+inputChoice isDefault choices mkView =
     Form $ do i <- getFormId
               inp <- getFormInput' i
-              view <- mkView i <$> augmentChoices choices
+
               case inp of
                 Default ->
-                    do mkRet i view def
+                    do let (choices', def) = markSelected choices
+                       view <- mkView i <$> augmentChoices choices'
+                       mkRet i view def
+
                 Missing -> -- can happen if no choices where checked
-                     do mkRet i def
+                    do let (choices', def) = markSelected choices
+                       view <- mkView i <$> augmentChoices choices'
+                       mkRet i view def
+
                 (Found v) ->
                     do let readDec' str = case readDec str of
                                             [(n,[])] -> n
                                             _ -> (-1) -- FIXME: should probably return an internal error?
-                           key = map readDec' $ getInputString v
-                           val = lookup key  $ zipWith (\i (a, _,_) -> (i, a)) [0..] choices
+                           (Right str) = getInputString v :: Either error String -- FIXME
+                           key = readDec' str
+                           (choices', val) =
+                               foldr (\(i, (a, lbl)) (c, v) ->
+                                          if i == key
+                                          then ((a,lbl,True) : c, Just a)
+                                          else ((a,lbl,False): c,     v))
+                                     ([], Nothing) $
+                                     zip [0..] choices
+                       view <- mkView i <$> augmentChoices choices'
                        mkRet i view val
 
     where
+      markSelected :: [(a,lbl)] -> ([(a, lbl, Bool)], Maybe a)
+      markSelected cs = foldr (\(a,lbl) (vs, ma) ->
+                                   if isDefault a
+                                      then ((a,lbl,True):vs , Just a)
+                                      else ((a,lbl,False):vs, ma))
+                         ([], Nothing)
+                         cs
+
       augmentChoices :: (Monad m) => [(a, lbl, Bool)] -> FormState m input [(FormId, Int, lbl, Bool)]
       augmentChoices choices = mapM augmentChoice (zip [0..] choices)
 
       augmentChoice :: (Monad m) => (Int, (a, lbl, Bool)) -> FormState m input (FormId, Int, lbl, Bool)
-      augmentChoice (vl, (a, lbl)) =
+      augmentChoice (vl, (a, lbl,selected)) =
           do i <- getFormId
-             return (i, vl, lbl, checked)
--}
+             return (i, vl, lbl, selected)
+
 {-
       mkCheckbox :: (Monad m, XMLGenerator x, EmbedAsChild x lbl) => FormId -> (Integer, (a, lbl, Bool)) -> FormState m input [XMLGenT x (XMLType x)]
       mkCheckbox nm (vl, (_,lbl,checked)) =
