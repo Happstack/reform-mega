@@ -5,9 +5,10 @@ module Main where
 import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString.Char8 as C
+import Data.Text (Text)
 import Text.Blaze ((!), Html)
 import Text.Formettes
-import Text.Formettes.HSP
+import Text.Formettes.HSP.String
 import Text.Formettes.Happstack
 import HSP.ServerPartT
 import Happstack.Server
@@ -43,7 +44,7 @@ vices vs = inputCheckboxes $ map mkVice [Sex .. RockAndRoll]
       mkVice v = (v, show v, v `elem` vs)
 
 vices2 :: [Vice] -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () [Vice]
-vices2 vs = inputMultiSelect $ map mkVice [Sex .. RockAndRoll]
+vices2 vs = selectMultiple $ map mkVice [Sex .. RockAndRoll]
     where
       mkVice v = (v, show v, v `elem` vs)
 
@@ -62,9 +63,13 @@ instance Show Stars where
     show FourStars  = "★★★★"
     show FiveStars  = "★★★★★"
 
-stars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () (Maybe Stars)
+stars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () Stars
 stars def =
     inputRadio (== def) [(s, show s) | s <- [OneStar .. FiveStars]]
+
+selectStars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () Stars
+selectStars def =
+    select (== def) [(s, show s) | s <- [OneStar .. FiveStars]]
 
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
@@ -97,6 +102,42 @@ formHandler form =
 
              ]
 
+data BigForm = BigForm
+    { text         :: String
+    , pwd          :: String
+    , hidden       :: String
+    , speech       :: String
+    , file         :: FilePath
+    , check        :: Bool
+    , viceChecks   :: [Vice]
+    , viceMulti    :: [Vice]
+    , starsRadio   :: Stars
+    , starsSelect  :: Stars
+    , submit       :: Maybe String
+    , intButton    :: Maybe String
+    }
+    deriving Show
+
+bigForm :: Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () BigForm
+bigForm =
+    BigForm <$> (label "username:" ++> inputText "")              <* br
+            <*> (label "password:" ++> inputPassword)             <* br
+            <*> inputHidden "It's a secret to everybody."
+            <*> (label "a little speech" ++> (textarea 80 10 "")) <* br
+            <*> (label "a file, any file" ++> inputFile)          <* br
+            <*> label "check this box if appropriate: " ++> inputCheckbox True <* br
+            <*> vices [Sex, RockAndRoll]                          <* br
+            <*> vices2 [Drugs, RockAndRoll]                       <* br
+            <*> stars ThreeStars                                  <* br
+            <*> selectStars ThreeStars                            <* br
+            <*> buttonSubmit "123" <b>123</b>                     <* br
+            <*> inputSubmit "submit!!"
+            <* inputButton "little button that doesn't do anything"
+            <* inputReset "reeeeset!"
+            <* buttonReset <b>ReSeT!</b>
+            <* button <span>Another button that does <i>nothing</i></span>
+
+
 main :: IO ()
 main =
     do let greekForm  = (greek $ Greek False True False)
@@ -104,4 +145,4 @@ main =
            vice2Form  = vices2 [Sex, RockAndRoll]
            starsForm  = stars TwoStars
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
-                                formHandler starsForm
+                                formHandler bigForm

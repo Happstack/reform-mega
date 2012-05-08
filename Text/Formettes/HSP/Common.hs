@@ -8,7 +8,10 @@ import Text.Formettes.Generalized as G
 import Text.Formettes.Result (FormId, Result(Ok), unitRange)
 import HSP
 
-inputText :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+instance (EmbedAsAttr m (Attr String String)) => (EmbedAsAttr m (Attr String FormId)) where
+    asAttr (n := v) = asAttr (n := show v)
+
+inputText :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              (input -> Either error text)
           -> text
           -> Form m input error [XMLGenT x (XMLType x)] () text
@@ -16,7 +19,7 @@ inputText getInput initialValue = G.input getInput inputField initialValue
     where
       inputField i a = [<input type="text" id=i name=i value=a />]
 
-inputPassword :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputPassword :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              (input -> Either error text)
           -> text
           -> Form m input error [XMLGenT x (XMLType x)] () text
@@ -24,27 +27,22 @@ inputPassword getInput initialValue = G.input getInput inputField initialValue
     where
       inputField i a = [<input type="password" id=i name=i value=a />]
 
-inputSubmit :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputSubmit :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              (input -> Either error text)
           -> text
-          -> Form m input error [XMLGenT x (XMLType x)] () text
-inputSubmit getInput initialValue = G.input getInput inputField initialValue
+          -> Form m input error [XMLGenT x (XMLType x)] () (Maybe text)
+inputSubmit getInput initialValue = G.inputMaybe getInput inputField initialValue
     where
       inputField i a = [<input type="submit" id=i name=i value=a />]
 
-inputReset :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputReset :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
               text
            -> Form m input error [XMLGenT x (XMLType x)] () ()
 inputReset lbl = G.inputReset inputField lbl
     where
       inputField i a = [<input type="reset" id=i name=i value=a />]
 
-inputFile :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) => Form m input error [XMLGenT x (XMLType x)] () (Maybe (FileType input))
-inputFile = G.inputFile fileView
-    where
-      fileView i = [<input type="file" name=i id=i />]
-
-inputHidden :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputHidden :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              (input -> Either error text)
           -> text
           -> Form m input error [XMLGenT x (XMLType x)] () text
@@ -52,26 +50,39 @@ inputHidden getInput initialValue = G.input getInput inputField initialValue
     where
       inputField i a = [<input type="hidden" id=i name=i value=a />]
 
-inputButton :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
-             (input -> Either error text)
-          -> text
-          -> Form m input error [XMLGenT x (XMLType x)] () text
-inputButton getInput initialValue = G.input getInput inputField initialValue
+inputButton :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
+             text
+          -> Form m input error [XMLGenT x (XMLType x)] () ()
+inputButton label = G.inputReset inputField label
     where
       inputField i a = [<input type="button" id=i name=i value=a />]
 
+textarea :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x text) =>
+            (input -> Either error text)
+         -> Int    -- ^ cols
+         -> Int    -- ^ rows
+         -> text   -- ^ initial text
+         -> Form m input error [XMLGenT x (XMLType x)] () text
+textarea getInput cols rows initialValue = G.input getInput textareaView initialValue
+    where
+      textareaView i txt = [<textarea rows=rows cols=cols id=i name=i><% txt %></textarea>]
 
-buttonSubmit :: ( Monad m, FormError error, EmbedAsChild x children , EmbedAsAttr x (Attr String String) , EmbedAsAttr x (Attr String FormId) , EmbedAsAttr x (Attr String a)
-                ) =>
-                (input -> Either error a)
-             -> a
+inputFile :: (Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
+             Form m input error [XMLGenT x (XMLType x)] () (FileType input)
+inputFile = G.inputFile fileView
+    where
+      fileView i = [<input type="file" name=i id=i />]
+
+buttonSubmit :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
+                (input -> Either error text)
+             -> text
              -> children
-             -> Form m input error [XMLGenT x (XMLType x)] () a
-buttonSubmit getInput text c = G.input getInput inputField text
+             -> Form m input error [XMLGenT x (XMLType x)] () (Maybe text)
+buttonSubmit getInput text c = G.inputMaybe getInput inputField text
     where
       inputField i a = [<button type="submit" id=i name=i value=a><% c %></button>]
 
-buttonReset :: ( Monad m, FormError error, EmbedAsChild x children , EmbedAsAttr x (Attr String String) , EmbedAsAttr x (Attr String FormId)
+buttonReset :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)
                 ) =>
                children
              -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -79,7 +90,7 @@ buttonReset c = G.inputReset inputField Nothing
     where
       inputField i a = [<button type="reset" id=i name=i><% c %></button>]
 
-button :: ( Monad m, FormError error, EmbedAsChild x children , EmbedAsAttr x (Attr String String) , EmbedAsAttr x (Attr String FormId)
+button :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)
                 ) =>
                children
              -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -87,14 +98,14 @@ button c = G.inputReset inputField Nothing
     where
       inputField i a = [<button type="button" id=i name=i><% c %></button>]
 
-label :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x c, Monad m) =>
+label :: (Monad m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x c) =>
          c
       -> Form m input error [XMLGenT x (XMLType x)] () ()
 label c = G.label mkLabel
     where
       mkLabel i = [<label for=i><% c %></label>]
 
-inputCheckbox :: forall x error input m. (XMLGenerator x, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputCheckbox :: forall x error input m. (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
                    Bool  -- ^ initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () Bool
 inputCheckbox initiallyChecked =
@@ -117,7 +128,7 @@ inputCheckbox initiallyChecked =
                                        })
                  )
 
-inputCheckboxes :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputCheckboxes :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
                    [(a, lbl, Bool)]  -- ^ value, label, initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
 inputCheckboxes choices =
@@ -129,10 +140,10 @@ inputCheckboxes choices =
              , <label for=i><% lbl %></label>
              ]
 
-inputRadio :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
               (a -> Bool) -- ^ isDefault
            -> [(a, lbl)]  -- ^ value, label, initially checked
-           -> Form m input error [XMLGenT x (XMLType x)] () (Maybe a)
+           -> Form m input error [XMLGenT x (XMLType x)] () a
 inputRadio isDefault choices =
     G.inputChoice isDefault choices mkRadios
     where
@@ -143,10 +154,28 @@ inputRadio isDefault choices =
              , <br />
              ]
 
-inputMultiSelect :: (Functor m, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId), FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
+              (a -> Bool) -- ^ isDefault, must match *exactly one* element in the list of choices
+           -> [(a, lbl)]  -- ^ value, label, initially checked
+           -> Form m input error [XMLGenT x (XMLType x)] () a
+select isDefault choices =
+    G.inputChoice isDefault choices mkSelect
+    where
+      mkSelect nm choices' =
+          [<select name=nm>
+            <% mapM mkOption choices' %>
+           </select>
+          ]
+
+      mkOption (_, val, lbl, selected) =
+          <option value=val (if selected then ["selected" := "selected"] else [])>
+           <% lbl %>
+          </option>
+
+selectMultiple :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
                    [(a, lbl, Bool)]  -- ^ value, label, initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
-inputMultiSelect choices =
+selectMultiple choices =
     G.inputMulti choices mkSelect
     where
       mkSelect nm choices' =
@@ -180,9 +209,13 @@ inputMultiSelectOptGroup choices =
           </option>
 -}
 
-errorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) => Form m input error [XMLGenT x (XMLType x)] () ()
+errorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
+             Form m input error [XMLGenT x (XMLType x)] () ()
 errorList = G.errors mkErrors
     where
       mkErrors []   = []
       mkErrors errs = [<ul class="formettes-error-list"><% mapM mkError errs %></ul>]
       mkError e     = <li><% e %></li>
+
+br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
+br = view [<br />]

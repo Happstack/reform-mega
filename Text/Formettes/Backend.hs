@@ -12,6 +12,7 @@ data CommonFormError input
     | NoFileFound input
     | MultiFilesFound input
     | MultiStringsFound input
+    | MissingDefaultValue
       deriving (Eq, Ord, Show)
 
 class FormError e where
