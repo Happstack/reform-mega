@@ -16,11 +16,7 @@ instance (H.ToValue FormId) where
 inputString :: (FormError error, ErrorInputType error ~ input, FormInput input, Monad m) => String -> Form m input error Html () String
 inputString initialValue = G.input getInputString inputField initialValue
     where
-      inputField i mv def =
-          let s = case mv of
-                    (Found s') -> s'
-                    _          -> def
-          in H.input ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue s)
+      inputField i v = H.input ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue v)
 
 label :: (Monad m) => Html -> Form m input error Html () ()
 label c = G.label mkLabel

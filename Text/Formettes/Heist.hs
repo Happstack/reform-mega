@@ -51,11 +51,8 @@ inputString :: (FormError error, ErrorInputType error ~ input, FormInput input, 
             -> Form m input error RefMap () String
 inputString ref initialValue = G.input getInputString mkInput initialValue
     where
-      mkInput i mv def =
-          let s = case mv of
-                    (Found s') -> s'
-                    _          -> def
-          in RefMap { inputMap = Map.singleton ref (i, s)
+      mkInput i v =
+          RefMap { inputMap = Map.singleton ref (i, v)
   --                  , errorMap = Map.empty
                     }
 
