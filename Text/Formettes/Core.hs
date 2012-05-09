@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{- |
+This module defines the 'Form' type, its instances, core manipulation functions, and a bunch of helper utilities.
+-}
 module Text.Formettes.Core where
 
 import Control.Applicative    (Applicative(pure, (<*>)))
@@ -7,17 +10,46 @@ import Control.Monad.Reader   (MonadReader(ask), ReaderT, runReaderT)
 import Control.Monad.State    (MonadState(get,put), StateT, evalStateT)
 import Control.Monad.Trans    (lift)
 import Data.Monoid            (Monoid(mempty, mappend))
-import Text.Formettes.Result
+import Text.Formettes.Result  (FormId(..), FormRange(..), Result(..), unitRange, zeroId)
 
+------------------------------------------------------------------------------
+-- * type-indexed / parameterized classes
+------------------------------------------------------------------------------
+
+-- | a class for a 'type-indexed' or 'paramaterized' functor
+--
+-- note: not sure what the most correct name is for this class, or if
+-- it exists in a well supported library already.
 class IndexedFunctor f where
-    imap :: (x -> y) -> (a -> b) -> f x a -> f y b
+    -- | imap is similar to fmap
+    imap :: (x -> y) -- ^ function to apply to first parameter
+         -> (a -> b) -- ^ function to apply to second parameter
+         -> f x a    -- ^ indexed functor
+         -> f y b
 
+-- | a class for a 'type-indexed' or 'paramaterized' applicative functors
+--
+-- note: not sure what the most correct name is for this class, or if
+-- it exists in a well supported library already.
 class (IndexedFunctor f) => IndexedApplicative f where
+    -- | similar to 'pure'
     ipure   :: x -> a -> f x a
+    -- | similar to '<*>'
     (<+*+>) :: f (x -> y) (a -> b) -> f x a -> f y b
 
 infixl 4 <+*+>
 
+-- | similar to '<$>'. An alias for 'imap id'
+(<+$+>) :: IndexedFunctor f => (a -> b) -> f y a -> f y b
+(<+$+>) = imap id
+
+infixl 4 <+$+>
+
+------------------------------------------------------------------------------
+-- * Proved
+------------------------------------------------------------------------------
+
+-- | Proved records a value, the location that value came from, and something that was proved about the value.
 data Proved proofs a =
     Proved { proofs   :: proofs
            , pos      :: FormRange
@@ -27,6 +59,7 @@ data Proved proofs a =
 instance Functor (Proved ()) where
     fmap f (Proved () pos a) = Proved () pos (f a)
 
+-- | Utility Function: trivially prove nothing about ()
 unitProved :: FormId -> Proved () ()
 unitProved formId =
     Proved { proofs   = ()
@@ -34,19 +67,27 @@ unitProved formId =
            , unProved = ()
            }
 
+------------------------------------------------------------------------------
+-- * FormState
+------------------------------------------------------------------------------
+
+-- | inner state used by 'Form'.
 type FormState m input = ReaderT (Environment m input) (StateT FormRange m)
 
+-- | used to represent whether a value was found in the form
+-- submission data, missing from the form submission data, or expected
+-- that the default value should be used
 data Value a
-    = Missing
+    = Default
+    | Missing
     | Found a
-    | Default
 
 -- | Utility function: Get the current input
 --
-getFormInput :: Monad m => FormState m i (Value i)
+getFormInput :: Monad m => FormState m input (Value input)
 getFormInput = getFormId >>= getFormInput'
 
--- | Gets the input of an arbitrary FormId.
+-- | Utility function: Gets the input of an arbitrary 'FormId'.
 --
 getFormInput' :: Monad m => FormId -> FormState m input (Value input)
 getFormInput' id' = do
@@ -61,10 +102,13 @@ getFormInput' id' = do
 getFormRange :: Monad m => FormState m i FormRange
 getFormRange = get
 
-
--- | The environment is where you get the actual input per form. The environment
--- itself is optional
+-- | The environment is where you get the actual input per form.
 --
+-- The 'NoEnvironment' constructor is typically used when generating a
+-- view for a GET request, where no data has yet been submitted. This
+-- will cause the input elements to use their supplied default values.
+--
+-- Note that 'NoEnviroment' is different than supplying an empty environment.
 data Environment m input
     = Environment (FormId -> m (Value input))
     | NoEnvironment
@@ -94,6 +138,7 @@ getFormId = do
     FormRange x _ <- get
     return x
 
+-- | Utility function: increment the current 'FormId'.
 incFormId :: Monad m => FormState m i ()
 incFormId = do
         FormRange _ endF1 <- get
@@ -109,6 +154,35 @@ newtype View error v = View
 instance Functor (View e) where
     fmap f (View g) = View $ f . g
 
+------------------------------------------------------------------------------
+-- * Form
+------------------------------------------------------------------------------
+
+-- | a 'Form' contains a 'View' combined with a validation function
+-- which will attempt to extract a value from submitted form data.
+--
+-- It is highly parameterized, allowing it work in a wide variety of
+-- different configurations. You will likely want to make a type alias
+-- that is specific to your application to make type signatures more
+-- manageable.
+--
+--   [@m@] A monad which can be used by the validator
+--
+--   [@input@] A framework specific type for representing the raw key/value pairs from the form data
+--
+--   [@error@] A application specific type for error messages
+--
+--   [@view@] The type of data being generated for the view (HSP, Blaze Html, Heist, etc)
+--
+--   [@proof@] A type which names what has been proved about the return value. @()@ means nothing has been proved.
+--
+--   [@a@] Value return by form when it is successfully decoded, validated, etc.
+--
+--
+-- This type is very similar to the 'Form' type from
+-- @digestive-functors <= 0.2@. If @proof@ is @()@, then 'Form' is an
+-- applicative functor and can be used almost exactly like
+-- @digestive-functors <= 0.2@.
 newtype Form m input error view proof a = Form { unForm :: FormState m input (View error view, m (Result error (Proved proof a))) }
 
 instance (Monad m) => IndexedFunctor (Form m input view error) where
@@ -118,11 +192,6 @@ instance (Monad m) => IndexedFunctor (Form m input view error) where
                   case val of
                     (Ok (Proved p pos a)) -> return (view, return $ Ok (Proved (f p) pos (g a)))
                     (Error errs)          -> return (view, return $ Error errs)
-
-(<+$+>) :: IndexedFunctor f => (a -> b) -> f y a -> f y b
-(<+$+>) = imap id
-
-infixl 4 <+$+>
 
 instance (Monoid view, Monad m) => IndexedApplicative (Form m input error view) where
     ipure p a = Form $ do i <- getFormId
@@ -175,7 +244,7 @@ instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error vi
                                                                     , unProved = f a
                                                                     })
 
--- * Ways to evaluate a Form
+-- ** Ways to evaluate a Form
 
 -- | Run a form
 --
@@ -209,7 +278,13 @@ viewForm prefix form =
     do (v, _) <- runForm prefix NoEnvironment form
        return (unView v [])
 
--- | Evaluate a form to it's view if it fails
+-- | Evaluate a form
+--
+-- Returns:
+--
+-- [@Left view@] on failure. The @view@ will have already been applied to the errors.
+--
+-- [@Right a@] on success.
 --
 eitherForm :: Monad m
            => String                          -- ^ Identifier for the form
@@ -223,22 +298,28 @@ eitherForm form id' env = do
         Error e  -> Left $ unView view' e
         Ok x     -> Right (unProved x)
 
--- | Insert a view into the functor
+-- | create a 'Form' from some @view@.
 --
+-- This is typically used to turn markup like @\<br\>@ into a 'Form'.
 view :: Monad m
-     => view                        -- ^ View to insert
+     => view                           -- ^ View to insert
      -> Form m input error view () ()  -- ^ Resulting form
 view view' =
   Form $
     do i <- getFormId
-       return (View (const view'), return (Ok (Proved { proofs   = ()
-                                                             , pos      = FormRange i i
-                                                             , unProved = ()
-                                                             })))
+       return ( View (const view')
+              , return (Ok (Proved { proofs   = ()
+                                   , pos      = FormRange i i
+                                   , unProved = ()
+                                   })))
 
 -- | Append a unit form to the left. This is useful for adding labels or error
--- fields
+-- fields.
 --
+-- The 'Forms' on the left and right hand side will share the same
+-- 'FormId'. This is useful for elements like @\<label
+-- for=\"someid\"\>@, which need to refer to the id of another
+-- element.
 (++>) :: (Monad m, Monoid view)
       => Form m input error view () ()
       -> Form m input error view proof a
@@ -267,22 +348,23 @@ infixr 5 <++
 
 -- | Change the view of a form using a simple function
 --
+-- This is useful for wrapping a form inside of a \<fieldset\> or other markup element.
 mapView :: (Monad m, Functor m)
         => (view -> view')        -- ^ Manipulator
         -> Form m input error view  proof a  -- ^ Initial form
         -> Form m input error view' proof a  -- ^ Resulting form
 mapView f = Form . fmap (first $ fmap f) . unForm
 
-
-mkRet :: (Monad m) =>
+-- | Utility Function: turn a view and return value into a successful 'FormState'
+mkOk :: (Monad m) =>
          FormId
       -> view
       -> a
       -> FormState m input (View error view, m (Result error (Proved () a)))
-mkRet i view val =
-          return ( View $ const $ view
-                 , return $ Ok (Proved { proofs   = ()
-                                       , pos      = unitRange i
-                                       , unProved = val
-                                       })
-                 )
+mkOk i view val =
+    return ( View $ const $ view
+           , return $ Ok (Proved { proofs   = ()
+                                 , pos      = unitRange i
+                                 , unProved = val
+                                 })
+           )

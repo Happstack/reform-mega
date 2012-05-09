@@ -4,9 +4,9 @@ Version:             0.1
 -- Description:
 License:             BSD3
 License-file:        LICENSE
-Author:              Jeremy Shaw
-Maintainer:          jeremy@n-heptane.com
--- Copyright:
+Author:              Jeremy Shaw, Jasper Van der Jeugt <m@jaspervdj.be>
+Maintainer:          Jeremy Shaw <jeremy@n-heptane.com>
+Copyright:           2012 Jeremy Shaw, Jasper Van der Jeugt
 Category:            Web
 Build-type:          Simple
 Cabal-version:       >=1.2

@@ -167,11 +167,11 @@ inputMulti choices mkView isSelected =
                                                     ([],[])
                                                     choices
                        view     <- mkView i <$> augmentChoices choices'
-                       mkRet i view vals
+                       mkOk i view vals
 
                 Missing -> -- just means that no checkboxes were checked
                      do view <- mkView i <$> augmentChoices (map (\(x,y) -> (x,y,False)) choices)
-                        mkRet i view []
+                        mkOk i view []
 
                 (Found v) ->
                     do let readDec' str = case readDec str of
@@ -185,7 +185,7 @@ inputMulti choices mkView isSelected =
                                           else ((a,lbl,False): c,     v)) ([],[]) $
                                  zip [0..] choices
                        view <- mkView i <$> augmentChoices choices'
-                       mkRet i view vals
+                       mkOk i view vals
 
 
     where
@@ -212,12 +212,12 @@ inputChoice isDefault choices mkView =
                 Default ->
                     do let (choices', def) = markSelected choices
                        view <- mkView i <$> augmentChoices choices'
-                       mkRet' i view def
+                       mkOk' i view def
 
                 Missing -> -- can happen if no choices where checked
                     do let (choices', def) = markSelected choices
                        view <- mkView i <$> augmentChoices choices'
-                       mkRet' i view def
+                       mkOk' i view def
 
                 (Found v) ->
                     do let readDec' str = case readDec str of
@@ -238,11 +238,11 @@ inputChoice isDefault choices mkView =
                              return ( View $ const $ view
                                     , return $ Error [(unitRange i, commonFormError (InputMissing i))]
                                     )
-                         (Just val) -> mkRet i view val
+                         (Just val) -> mkOk i view val
 
     where
-      mkRet' i view (Just val) = mkRet i view val
-      mkRet' i view Nothing =
+      mkOk' i view (Just val) = mkOk i view val
+      mkOk' i view Nothing =
           return ( View $ const $ view
                  , return $ Error [(unitRange i, commonFormError MissingDefaultValue)]
                  )
