@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleInstances, TypeFamilies #-}
+{- |
+Support for using Formettes with the Haskell Web Framework Happstack. <http://happstack.com/>
+-}
 module Text.Formettes.Happstack where
 
 import Control.Applicative                 (optional)
@@ -21,6 +24,7 @@ instance FormInput [Input] where
           []   -> Left (commonFormError $ NoFileFound inputs)
           _    -> Left (commonFormError $ MultiFilesFound inputs)
 
+-- | create an 'Envirnoment' to be used with 'runForm'
 environment :: (Happstack m) => Environment m [Input]
 environment =
     Environment $ \formId ->
