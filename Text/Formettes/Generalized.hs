@@ -149,34 +149,44 @@ inputFile toView =
           getInputFile' = getInputFile
 
 -- | checkboxes, multi-select boxes
-inputMulti :: (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
-                   [(a, lbl, Bool)]                                -- ^ value, label, initially checked
-                -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
-                -> Form m input error view () [a]
-inputMulti choices mkView =
+inputMulti :: forall m input error view a lbl. (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+              [(a, lbl)]                                      -- ^ value, label, initially checked
+           -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
+           -> (a -> Bool)                                     -- ^ isChecked/isSelected initially
+           -> Form m input error view () [a]
+inputMulti choices mkView isSelected =
     Form $ do i <- getFormId
               inp <- getFormInput' i
               case inp of
+
                 Default ->
-                    do view <- mkView i <$> augmentChoices choices
-                       let vals = mapMaybe (\(a,_,checked) -> if checked then Just a else Nothing) choices
+                    do let (choices', vals) = foldr (\(a, lbl) (cs,vs) ->
+                                                         if isSelected a
+                                                         then ((a, lbl, True) :cs, a:vs)
+                                                         else ((a, lbl, False):cs,   vs))
+                                                    ([],[])
+                                                    choices
+                       view     <- mkView i <$> augmentChoices choices'
                        mkRet i view vals
-                Missing -> -- can happen if no choices where checked
-                     do view <- mkView i <$> augmentChoices choices
+
+                Missing -> -- just means that no checkboxes were checked
+                     do view <- mkView i <$> augmentChoices (map (\(x,y) -> (x,y,False)) choices)
                         mkRet i view []
+
                 (Found v) ->
                     do let readDec' str = case readDec str of
                                             [(n,[])] -> n
                                             _ -> (-1) -- FIXME: should probably return an internal error?
                            keys   = IS.fromList $ map readDec' $ getInputStrings v
                            (choices', vals) =
-                               foldr (\(i, (a,lbl,_)) (c,v) ->
+                               foldr (\(i, (a,lbl)) (c,v) ->
                                           if IS.member i keys
                                           then ((a,lbl,True) : c, a : v)
                                           else ((a,lbl,False): c,     v)) ([],[]) $
                                  zip [0..] choices
                        view <- mkView i <$> augmentChoices choices'
                        mkRet i view vals
+
 
     where
       augmentChoices :: (Monad m) => [(a, lbl, Bool)] -> FormState m input [(FormId, Int, lbl, Bool)]

@@ -39,14 +39,14 @@ data Vice
       deriving (Show, Eq, Enum)
 
 vices :: [Vice] -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () [Vice]
-vices vs = inputCheckboxes $ map mkVice [Sex .. RockAndRoll]
+vices vs = inputCheckboxes (map mkVice [Sex .. RockAndRoll]) (`elem` vs)
     where
-      mkVice v = (v, show v, v `elem` vs)
+      mkVice v = (v, show v)
 
 vices2 :: [Vice] -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () [Vice]
-vices2 vs = selectMultiple $ map mkVice [Sex .. RockAndRoll]
+vices2 vs = selectMultiple (map mkVice [Sex .. RockAndRoll]) (`elem` vs)
     where
-      mkVice v = (v, show v, v `elem` vs)
+      mkVice v = (v, show v)
 
 data Stars
     = OneStar
@@ -65,11 +65,11 @@ instance Show Stars where
 
 stars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () Stars
 stars def =
-    inputRadio (== def) [(s, show s) | s <- [OneStar .. FiveStars]]
+    inputRadio [(s, show s) | s <- [OneStar .. FiveStars]] (== def)
 
 selectStars :: Stars -> Form (ServerPartT IO) [Input] String [XMLGenT (ServerPartT IO) XML] () Stars
 selectStars def =
-    select (== def) [(s, show s) | s <- [OneStar .. FiveStars]]
+    select [(s, show s) | s <- [OneStar .. FiveStars]] (== def)
 
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
@@ -107,14 +107,14 @@ data BigForm = BigForm
     , pwd          :: String
     , hidden       :: String
     , speech       :: String
-    , file         :: FilePath
+    , file         :: (FilePath, FilePath, ContentType)
     , check        :: Bool
     , viceChecks   :: [Vice]
     , viceMulti    :: [Vice]
     , starsRadio   :: Stars
     , starsSelect  :: Stars
-    , submit       :: Maybe String
     , intButton    :: Maybe String
+    , submit       :: Maybe String
     }
     deriving Show
 

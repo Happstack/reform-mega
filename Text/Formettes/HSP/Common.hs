@@ -67,12 +67,16 @@ textarea getInput cols rows initialValue = G.input getInput textareaView initial
     where
       textareaView i txt = [<textarea rows=rows cols=cols id=i name=i><% txt %></textarea>]
 
+-- | Create an @\<input type=\"file\"\>@ element
+--
+-- This control may succeed even if the user does not actually select a file to upload. In that case the uploaded name will likely be "" and the file contents will be empty as well.
 inputFile :: (Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
              Form m input error [XMLGenT x (XMLType x)] () (FileType input)
 inputFile = G.inputFile fileView
     where
       fileView i = [<input type="file" name=i id=i />]
 
+-- | Create a @\<button type=\"submit\"\>@ element
 buttonSubmit :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
                 (input -> Either error text)
              -> text
@@ -129,10 +133,11 @@ inputCheckbox initiallyChecked =
                  )
 
 inputCheckboxes :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-                   [(a, lbl, Bool)]  -- ^ value, label, initially checked
+                  [(a, lbl)]  -- ^ value, label, initially checked
+                -> (a -> Bool) -- ^ function which indicates if a value should be checked initially
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
-inputCheckboxes choices =
-    G.inputMulti choices mkCheckboxes
+inputCheckboxes choices isChecked =
+    G.inputMulti choices mkCheckboxes isChecked
     where
       mkCheckboxes nm choices' = concatMap (mkCheckbox nm) choices'
       mkCheckbox nm (i, val, lbl, checked) =
@@ -141,10 +146,10 @@ inputCheckboxes choices =
              ]
 
 inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-              (a -> Bool) -- ^ isDefault
-           -> [(a, lbl)]  -- ^ value, label, initially checked
+              [(a, lbl)]  -- ^ value, label, initially checked
+           -> (a -> Bool) -- ^ isDefault
            -> Form m input error [XMLGenT x (XMLType x)] () a
-inputRadio isDefault choices =
+inputRadio choices isDefault =
     G.inputChoice isDefault choices mkRadios
     where
       mkRadios nm choices' = concatMap (mkRadio nm) choices'
@@ -155,10 +160,10 @@ inputRadio isDefault choices =
              ]
 
 select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-              (a -> Bool) -- ^ isDefault, must match *exactly one* element in the list of choices
-           -> [(a, lbl)]  -- ^ value, label, initially checked
+              [(a, lbl)]  -- ^ value, label
+           -> (a -> Bool) -- ^ isDefault, must match *exactly one* element in the list of choices
            -> Form m input error [XMLGenT x (XMLType x)] () a
-select isDefault choices =
+select choices isDefault  =
     G.inputChoice isDefault choices mkSelect
     where
       mkSelect nm choices' =
@@ -173,10 +178,11 @@ select isDefault choices =
           </option>
 
 selectMultiple :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-                   [(a, lbl, Bool)]  -- ^ value, label, initially checked
-                -> Form m input error [XMLGenT x (XMLType x)] () [a]
-selectMultiple choices =
-    G.inputMulti choices mkSelect
+                  [(a, lbl)]  -- ^ value, label, initially checked
+               -> (a -> Bool)  -- ^ isSelected initially
+               -> Form m input error [XMLGenT x (XMLType x)] () [a]
+selectMultiple choices isSelected =
+    G.inputMulti choices mkSelect isSelected
     where
       mkSelect nm choices' =
           [<select name=nm multiple="multiple">
@@ -219,3 +225,23 @@ errorList = G.errors mkErrors
 
 br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
 br = view [<br />]
+
+fieldset :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+            Form m input error c proof a
+         -> Form m input error [XMLGenT x (XMLType x)] proof a
+fieldset frm = mapView (\xml -> [<fieldset class="formettes"><% xml %></fieldset>]) frm
+
+ol :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+      Form m input error c proof a
+   -> Form m input error [XMLGenT x (XMLType x)] proof a
+ol frm = mapView (\xml -> [<ol class="formettes"><% xml %></ol>]) frm
+
+ul :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+      Form m input error c proof a
+   -> Form m input error [XMLGenT x (XMLType x)] proof a
+ul frm = mapView (\xml -> [<ul class="formettes"><% xml %></ul>]) frm
+
+li :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+      Form m input error c proof a
+   -> Form m input error [XMLGenT x (XMLType x)] proof a
+li frm = mapView (\xml -> [<li class="formettes"><% xml %></li>]) frm
