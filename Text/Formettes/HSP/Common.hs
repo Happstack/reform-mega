@@ -109,6 +109,7 @@ label c = G.label mkLabel
     where
       mkLabel i = [<label for=i><% c %></label>]
 
+-- FIXME: should this use inputMaybe?
 inputCheckbox :: forall x error input m. (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
                    Bool  -- ^ initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () Bool

@@ -1,4 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, ViewPatterns #-}
+{- |
+This module provides helper functions for HTML input elements. These helper functions are not specific to any particular web framework or html library.
+-}
 module Text.Formettes.Generalized where
 
 import Control.Applicative    ((<$>))
@@ -10,6 +13,7 @@ import Text.Formettes.Backend
 import Text.Formettes.Core
 import Text.Formettes.Result
 
+-- | used for constructing elements like @\<input type=\"text\"\>@, which return a single input value.
 input :: (Monad m, FormError error) =>
          (input -> Either error a)
       -> (FormId -> a -> view)
@@ -40,6 +44,7 @@ input fromInput toView initialValue =
                            , return $ Error [(unitRange i, commonFormError (InputMissing i))]
                            )
 
+-- | used for elements like @\<input type=\"submit\"\>@ which are not always present in the form submission data.
 inputMaybe :: (Monad m, FormError error) =>
          (input -> Either error a)
       -> (FormId -> a -> view)
@@ -103,6 +108,7 @@ input' fromInput toView initialValue =
                            , return $ Error [(unitRange i, commonFormError (InputMissing i))]
                            )
 
+-- | used for elements like @\<input type=\"reset\"\>@ which take a value, but are never present in the form submission data.
 inputReset :: (Monad m) =>
               (FormId -> a -> view)
            -> a
@@ -116,6 +122,7 @@ inputReset toView a =
                                            })
                      )
 
+-- | used for @\<input type=\"file\"\>@
 inputFile :: forall m input error view. (Monad m, FormInput input, FormError error, ErrorInputType error ~ input) =>
              (FormId -> view)
           -> Form m input error view () (FileType input)
@@ -148,7 +155,7 @@ inputFile toView =
           getInputFile' :: (FormError error, ErrorInputType error ~ input) => input -> Either error (FileType input)
           getInputFile' = getInputFile
 
--- | checkboxes, multi-select boxes
+-- | used for groups of checkboxes, @\<select multiple=\"multiple\"\>@ boxes
 inputMulti :: forall m input error view a lbl. (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
               [(a, lbl)]                                      -- ^ value, label, initially checked
            -> (FormId -> [(FormId, Int, lbl, Bool)] -> view)  -- ^ function which generates the view
@@ -198,7 +205,7 @@ inputMulti choices mkView isSelected =
              return (i, vl, lbl, checked)
 
 
--- | radio buttons, single-select boxes
+-- | radio buttons, single @\<select\>@ boxes
 inputChoice :: forall a m error input lbl view. (Functor m, FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
                (a -> Bool)                                     -- ^ is default
             -> [(a, lbl)]                                      -- ^ value, label
@@ -314,7 +321,7 @@ inputChoice isDefault choices mkView =
 -}
 
 
-
+-- | used to create @\<label\>@ elements
 label :: Monad m =>
          (FormId -> view)
       -> Form m input error view () ()

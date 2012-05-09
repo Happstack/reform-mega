@@ -42,6 +42,7 @@ instance Applicative (Result e) where
     Ok _    <*> Error y = Error y
     Ok x    <*> Ok y    = Ok $ x y
 
+-- | convert a 'Result' to 'Maybe' discarding the error message on 'Error'
 getResult :: Result e ok -> Maybe ok
 getResult (Error _) = Nothing
 getResult (Ok r)    = Just r
@@ -63,6 +64,7 @@ zeroId p = FormId
     , formIdList = [0]
     }
 
+-- | map a function over the @[Integer]@ inside a 'FormId'
 mapId :: ([Integer] -> [Integer]) -> FormId -> FormId
 mapId f (FormId p is) = FormId p $ f is
 
@@ -70,6 +72,7 @@ instance Show FormId where
     show (FormId p xs) =
         p ++ "-fval[" ++ (intercalate "." $ reverse $ map show xs) ++ "]"
 
+-- | get the head 'Integer' from a 'FormId'
 formId :: FormId -> Integer
 formId = head . formIdList
 
@@ -85,6 +88,7 @@ incrementFormId :: FormId -> FormId
 incrementFormId (FormId p (x:xs)) = FormId p $ (x + 1):xs
 incrementFormId (FormId _ [])     = error "Bad FormId list"
 
+-- | create a 'FormRange' from a 'FormId'
 unitRange :: FormId -> FormRange
 unitRange i = FormRange i $ incrementFormId i
 

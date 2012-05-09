@@ -1,4 +1,3 @@
-module Text.Formettes.Proof where
 {- |
 This module defines the 'Proof' type, some proofs, and some helper functions.
 
@@ -8,6 +7,7 @@ A 'Proof' does three things:
  - optionally transforms the input value to another value while preserving that criteria
  - puts the proof name in type-signature where the type-checker can use it
 -}
+module Text.Formettes.Proof where
 
 import Control.Monad.Trans   (lift)
 import Numeric               (readDec, readFloat, readSigned)
