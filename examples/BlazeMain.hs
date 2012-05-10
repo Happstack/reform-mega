@@ -24,13 +24,13 @@ usernameForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                      String
                   -> Form m input (DemoFormError input) Html NotNull Username
 usernameForm initialValue =
-    errorList ++> (label "username: " ++> (Username <+$+> inputString initialValue `prove` (notNullProof InvalidUsername)))
+    errorList ++> (label "username: " ++> (Username <+$+> inputText initialValue `prove` (notNullProof InvalidUsername)))
 
 emailForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                   String
                -> Form m input (DemoFormError input) Html ValidEmail Email
 emailForm initialValue    =
-    errorList ++> (label "email: " ++> (Email    <+$+> inputString initialValue `prove` (validEmailProof InvalidEmail)))
+    errorList ++> (label "email: " ++> (Email    <+$+> inputText initialValue `prove` (validEmailProof InvalidEmail)))
 
 userForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
             String -- ^ initial username

@@ -6,15 +6,12 @@ import Control.Monad
 import qualified Data.ByteString.Char8 as C
 import Text.Blaze ((!), Html)
 import Text.Formettes
-import Text.Formettes.HSP
+import Text.Formettes.HSP.String
 import Text.Formettes.Happstack
 import HSP.ServerPartT
 import Happstack.Server
 import Happstack.Server.HSP.HTML
 import SharedForm
-
-instance (EmbedAsAttr (ServerPartT IO) (Attr String FormId)) where
-    asAttr (n := v) = asAttr (n := show v)
 
 instance (XMLGenerator x) => EmbedAsChild x (DemoFormError [Input]) where
     asChild InvalidEmail    = <%>Email address must contain a @.</%>
@@ -27,13 +24,13 @@ usernameForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, Fo
                 String
              -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] NotNull Username
 usernameForm initialValue =
-    errorList ++> (label "username: " ++> (Username <+$+> inputString initialValue `prove` (notNullProof InvalidUsername)))
+    errorList ++> (label "username: " ++> (Username <+$+> inputText initialValue `prove` (notNullProof InvalidUsername)))
 
 emailForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
              String
           -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] ValidEmail Email
 emailForm initialValue    =
-    errorList ++> (label "email: " ++> (Email    <+$+> inputString initialValue `prove` (validEmailProof InvalidEmail)))
+    errorList ++> (label "email: " ++> (Email    <+$+> inputText initialValue `prove` (validEmailProof InvalidEmail)))
 
 userForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
             String -- ^ initial username

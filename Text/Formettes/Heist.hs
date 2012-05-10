@@ -45,11 +45,11 @@ getRefAttributes = do
 
 type Ref = Text
 
-inputString :: (FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
+inputText :: (FormError error, ErrorInputType error ~ input, FormInput input, Monad m) =>
                Ref
             -> String
             -> Form m input error RefMap () String
-inputString ref initialValue = G.input getInputString mkInput initialValue
+inputText ref initialValue = G.input getInputString mkInput initialValue
     where
       mkInput i v =
           RefMap { inputMap = Map.singleton ref (i, v)
@@ -90,5 +90,3 @@ fmErrorList refMap errors =
                [] -> return []
                errs -> return $ errorList (map snd errs) attrs
 
-
---     return $ errorList (errors ref view) attrs

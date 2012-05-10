@@ -13,11 +13,17 @@ import qualified Text.Blaze.Html5.Attributes as A
 instance (H.ToValue FormId) where
     toValue = H.toValue . show
 
-inputString :: (FormError error, ErrorInputType error ~ input, FormInput input, Monad m) => String -> Form m input error Html () String
-inputString initialValue = G.input getInputString inputField initialValue
+-- | Create an @\<input type=\"text\"\>@ element
+inputText :: (FormError error, ErrorInputType error ~ input, FormInput input, Monad m) => String -> Form m input error Html () String
+inputText initialValue = G.input getInputString inputField initialValue
     where
       inputField i v = H.input ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue v)
 
+-- | create a @\<label\>@ element.
+--
+-- Use this with <++ or ++> to ensure that the @for@ attribute references the correct @id@.
+--
+-- > label "some input field: " ++> inputText ""
 label :: (Monad m) => Html -> Form m input error Html () ()
 label c = G.label mkLabel
     where
@@ -31,36 +37,12 @@ childErrors :: Monad m =>
             -> Form m input error Html () ()
 childErrors toHtml = G.errors toHtml
 
+-- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
+--
+-- The @<\ul\>@ will have the attribute @class=\"formettes-error-list\"@.
 errorList :: (Monad m, H.ToHtml error) => Form m input error Html () ()
 errorList = G.errors mkErrors
     where
       mkErrors []   = mempty
       mkErrors errs = H.ul ! A.class_ (H.toValue "formettes-error-list") $ mapM_ mkError errs
       mkError e     = H.li (H.toHtml e)
-
-{-
-
-inputString :: (FormError error, FormInput input, Monad m) => String -> Form m input error Html () String
-inputString initialValue =
-    Form $ do i <- getFormId
-              v <- getFormInput' i
-              case v of
-                Default ->
-                    return ( View $ const $ H.input ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue initialValue)
-                           , return $ Ok (Proved { proofs   = ()
-                                                 , pos      = unitRange i
-                                                 , unProved = initialValue
-                                                 }))
-                (Found (getInputString -> (Just str))) ->
-                    return ( View $ const $ H.input ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue str)
-                           , return $ Ok (Proved { proofs   = ()
-                                                 , pos      = unitRange i
-                                                 , unProved = str
-                                                 }))
-                _ ->
-                    return ( View $ const $ H.input ! A.type_ (H.toValue "text") ! A.id (H.toValue i) ! A.name (H.toValue i) ! A.value (H.toValue initialValue)
-                           , return $ Error [(unitRange i, commonFormError (InputMissing i))]
-                           )
-
-
--}

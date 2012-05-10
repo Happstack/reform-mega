@@ -24,13 +24,13 @@ usernameForm :: (Monad m, FormInput input) =>
                      String
                   -> Form m input (DemoFormError input) RefMap NotNull Username
 usernameForm initialValue =
-    (Username <+$+> (inputString "username" initialValue) `prove` (notNullProof InvalidUsername))
+    (Username <+$+> (inputText "username" initialValue) `prove` (notNullProof InvalidUsername))
 
 emailForm :: (Monad m, FormInput input) =>
                   String
                -> Form m input (DemoFormError input) RefMap ValidEmail Email
 emailForm initialValue    =
-    (Email    <+$+> inputString "email" initialValue `prove` (validEmailProof InvalidEmail))
+    (Email    <+$+> inputText "email" initialValue `prove` (validEmailProof InvalidEmail))
 
 userForm :: (Monad m, FormInput input) =>
             String -- ^ initial username

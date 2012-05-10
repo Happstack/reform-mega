@@ -38,7 +38,7 @@ inputSubmit getInput initialValue = G.inputMaybe getInput inputField initialValu
 inputReset :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
               text
            -> Form m input error [XMLGenT x (XMLType x)] () ()
-inputReset lbl = G.inputReset inputField lbl
+inputReset lbl = G.inputNoData inputField lbl
     where
       inputField i a = [<input type="reset" id=i name=i value=a />]
 
@@ -53,7 +53,7 @@ inputHidden getInput initialValue = G.input getInput inputField initialValue
 inputButton :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              text
           -> Form m input error [XMLGenT x (XMLType x)] () ()
-inputButton label = G.inputReset inputField label
+inputButton label = G.inputNoData inputField label
     where
       inputField i a = [<input type="button" id=i name=i value=a />]
 
@@ -90,7 +90,7 @@ buttonReset :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x childr
                 ) =>
                children
              -> Form m input error [XMLGenT x (XMLType x)] () ()
-buttonReset c = G.inputReset inputField Nothing
+buttonReset c = G.inputNoData inputField Nothing
     where
       inputField i a = [<button type="reset" id=i name=i><% c %></button>]
 
@@ -98,7 +98,7 @@ button :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , 
                 ) =>
                children
              -> Form m input error [XMLGenT x (XMLType x)] () ()
-button c = G.inputReset inputField Nothing
+button c = G.inputNoData inputField Nothing
     where
       inputField i a = [<button type="button" id=i name=i><% c %></button>]
 
