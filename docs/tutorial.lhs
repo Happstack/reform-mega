@@ -67,7 +67,7 @@ and validation code, but does so in a way that retains type safety.
 Hello Form!
 -----------
 
-> {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeFamilies, TypeSynonymInstances #-}
+> {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, TypeFamilies, TypeSynonymInstances #-}
 > {-# OPTIONS_GHC -F -pgmFtrhsx #-}
 > module Main where
 
@@ -77,7 +77,7 @@ First we need to import the Formettes library. We need to import three different
 > import Happstack.Server
 > import HSP.ServerPartT
 > import HSP
-> import Text.Formettes
+> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<+*+>), prove, transformEither, transform, decimal)
 > import Text.Formettes.Happstack
 > import Text.Formettes.HSP.String
 
@@ -88,7 +88,7 @@ First we will create a type alias for our applications server monad:
 
 Forms have the type 'Form' which looks like:
 
-    newtype Form m input error view proof = Form { ... }
+    newtype Form m input error view proof a = Form { ... }
 
 As you will note it is heavily parameterized:
 
@@ -109,6 +109,7 @@ In order to keep our type signatures sane, it is convenient to create a type ali
 
 > data AppError
 >     = Required
+>     | NotANatural String
 >     | Common (CommonFormError [Input])
 >       deriving Show
 
@@ -225,11 +226,20 @@ Separating Validation and Views
 
 One of the primary motivations behind the changes in digestive-functors 0.3 is allowing developers to separate the validation code from the code which generates the view. We can do this using Formettes at well -- in a manner that is both more flexible and which provides greater type safety. The key is the 'proof' parameter which we have so far set to `()` and otherwise ignored.
 
-Let's create a new form type alias that allows us to actually set the 'proof' parameter.
+In Formettes we divide the work into two pieces:
+
+ 1. Proofs
+ 2. a Form that returns a Proved value
+
+This allows the library authors to create Proofs and demand that the `Form` a developer provides satisfies a `Proof`. At the same time, it gives the developer unrestricted control over the layout of the `Form` -- including choice of templating library.
+
+Let's create a new type alias for `Form` that allows us to actually set the 'proof' parameter.
 
 > type ProofForm proof = Form IO [Input] AppError [AppT IO (XMLType (ServerPartT IO))] proof
 
-Using the 'proof' parameter is used to indicate that something has been proven about a forms return value. 
+First we will explore the `Proof` related code that would go into a library.
+
+The `proof` parameter is used to indicate that something has been proven about a forms return value.
 
 Two create a proof we need two things:
 
@@ -247,18 +257,132 @@ In `validPostForm`, we checked they input fields were not empty
 strings. We could turn that into a proof by creating a type to name
 that proof:
 
-> data NotNullProof = NotNullProof
+> data NotNull = NotNull
 
 and then creating a proof like so:
 
-> notNullProof :: error -> Proof m error NotNullProof [a] [a]
+> notNullProof :: forall m error a. (Monad m) =>
+>                 error -- ^ error to return if list is empty
+>              -> Proof m error NotNull [a] [a]
 > notNullProof errorMsg =
->     Proof { proofName    = NotNullProof
+>     Proof { proofName     = NotNull
 >           , proofFunction = assertNotNull
 >           }
 >     where
 >       assertNotNull :: [a] -> m (Either error [a])
->       assertNotNull = return errorMsg
+>       assertNotNull [] = return (Left errorMsg)
+>       assertNotNull xs  = return (Right xs)
+
+We can also create proofs that combine existing proofs. For example, a `Message` is only valid if all its fields are not null. So, first thing we want to do is create a proof name valid messages:
+
+> data ValidMessage = ValidMessage
+
+The normal `Message` constructor has the type:
+
+] Message :: String -> String -> String -> Message
+
+What we want is a smart constructor that also enforces the proofs:
+
+> mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
+> mkMessage = ipure (\NotNull NotNull NotNull -> ValidMessage) Message
 
 
-> -- mkMessage :: ProofForm 
+The library author can then specify that the user supplied form has the type:
+
+] Form ValidMessage Message
+
+To construct a form, we use a pattern very similar to what we did when using 'SimpleForm'.
+
+To apply a `Proof` we use the `prove` function:
+
+] prove :: (Monad m) =>
+]          Form m input error view q a
+]       -> Proof m error proof a b
+]       -> Form m input error view proof b
+
+So, we can make a `ProofForm` for non-empty `Strings` like this:
+
+> inputText' :: String -> ProofForm NotNull String
+> inputText' initialValue = inputText initialValue `prove` (notNullProof Required)
+
+> textarea' :: Int -> Int -> String -> ProofForm NotNull String
+> textarea' cols rows initialValue = textarea cols rows initialValue `prove` (notNullProof Required)
+
+to create the ValidMessage form we can then combine the pieces like:
+
+> provenPostForm :: ProofForm ValidMessage Message
+> provenPostForm =
+>     mkMessage <+*+> errorList ++> label "name: "    ++> inputText' ""
+>               <+*+> errorList ++> label "title: "   ++> inputText' ""
+>               <+*+> errorList ++> label "message: " ++> textarea' 80 40 ""
+
+This code looks quite similar to our `validPostForm` code. The primary
+difference is that we use `<+*+>` instead of `<*>`. That brings is to the topic of indexed applicative functors.
+
+Type Indexed / Parameterized Applicative Functors
+-------------------------------------------------
+
+Lets look at the type for `Form` again:
+
+    newtype Form m input error view proof a = Form { ... }
+
+In order to make an `Applicative` instance of `Form`, all the proof type variables have to be the same and form a Monoid:
+
+] instance (Functor m, Monad m, Monoid view, Monoid proof) => (Form m input error view proof) where ...
+
+for `SimpleForm` we used this instance:
+
+] instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error view ()) where
+
+Which looks and feels almost exactly like digestive-functors <= 0.2.
+
+But, for the provePostForm, that instance won't work for use. mkMessage has the type:
+
+] mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
+
+and we want to apply it to `ProofForms` created by:
+
+] inputText' :: String -> ProofForm NotNull String
+
+Here the proof types don't match up. Instead we need a Applicative Functor that allows use to transform the return value *and* the proof value. We need what, I believe, is called an type-indexed applicative functor or a parameterized applicative functor. Most literature on this subject is actually dealing with type-indexed or parameterized monads, but the idea is the same, or the class names are different.
+
+We define two new classes, `IndexedFunctor` and `IndexedApplicative`:
+
+] class IndexedFunctor f where
+]     -- | imap is similar to fmap
+]     imap :: (x -> y) -- ^ function to apply to first parameter
+]          -> (a -> b) -- ^ function to apply to second parameter
+]          -> f x a    -- ^ indexed functor
+]          -> f y b
+
+] class (IndexedFunctor f) => IndexedApplicative f where
+]     -- | similar to 'pure'
+]     ipure   :: x -> a -> f x a
+]     -- | similar to '<*>'
+]    (<+*+>) :: f (x -> y) (a -> b) -> f x a -> f y b
+
+These classes look just like their non-indexed counterparts, except that they transform an extra parameter. Now we can create instances like:
+
+] instance (Monad m)              => IndexedFunctor     (Form m input view error) where
+] instance (Monad m, Monoid view) => IndexedApplicative (Form m input error view) where
+
+We use this classes the same way we would use the normal `Functor` and `Applicative` classes. The only difference is that the type-checker can now enforce the proofs.
+
+Using proofs in unproven forms
+------------------------------
+
+The `Proof` module provides a handful of useful `Proofs` that perform
+transformations, such as converting a String to a Int. We can use this
+`Proofs` with our `SimpleForm` by using the `transform` function:
+
+] transform :: (Monad m) =>
+]              Form m input error view anyProof a
+]           -> Proof m error proof a b
+]           -> Form m input error view () b
+
+`transform` is similar to the `prove` function, except it ignores the
+proof name and sets the proof to `()`. Technically `()` is still a
+proof -- but we consider it to be the proof that proves nothing. We can then use that to create a simple form that parses a positive Integer value.
+
+> inputInt :: SimpleForm Integer
+> inputInt = inputText "" `transform` (decimal NotANatural)
