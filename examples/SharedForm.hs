@@ -34,5 +34,5 @@ data User = User { username :: Username
                  } deriving (Eq, Ord, Read, Show)
 data ValidUser = ValidUser
 
-mkUser :: (Monad m, Monoid view) => Form m inptu error view (NotNull -> ValidEmail -> ValidUser) (Username -> Email -> User)
+mkUser :: (Monad m, Monoid view) => Form m input error view (NotNull -> ValidEmail -> ValidUser) (Username -> Email -> User)
 mkUser = ipure (\NotNull ValidEmail -> ValidUser) User
