@@ -1,17 +1,22 @@
 Formettes Tutorial
 ==================
 
-Formettes is a type-safe form generation and validation library. Its
-primary use is generating HTML forms and processing the corresponding
-form submissions.
+Formettes is a library for create type-safe, composable, and validated
+HTML forms. It is built around applicative functors and is based on
+the same principles as formlets and digestive-functors < 0.2.
 
-The traditional method of creating and processing forms is:
+The core formettes library is designed to be portable and can be used
+with a wide variety of Haskell web frameworks and template solutions
+-- though only a few options are supported at the moment.
+
+The most basic method of creating and processing forms with out the
+assistence of formettes is to:
 
  1. create a &lt;form&gt; tag with the desired elements by hand
 
  2. write code which processed the form data set and tries to extract a value from it
 
-The developer encounters a number of difficulties using this method.
+The developer encounters a number of difficulties using this method:
 
  1. the developer must be careful to use the same 'name' field in the
  HTML and the code.
@@ -44,34 +49,47 @@ entire form has been filled out to perform validation.
 Brief History
 -------------
 
-Formettes is an extension of the work originally done by Philip Wadler
-et al., which was later ported to Haskell as the formlets library, and
-then revamped again as the digestive-functors library.
+Formettes is an extension of the OCaml-based formlets concept
+originally developed by Philip Wadler et al., which was later ported
+to Haskell as the `formlets` library, and then revamped again as the
+`digestive-functors` library.
 
-The digestive-functors 0.3 represents a major break from the
-traditional formlets tradition. The motivation behind
-digestive-functors 0.3 was to allow the separation of validators from
-the view code. This allows library authors to define forms, but allow
-the library users to create the view for the forms. It also provides a
-mechanism to support templating systems like Heist, where the view is
-defined in an external XML file rather than Haskell code.
+The `digestive-functors` 0.3 represents a major break from the
+traditional `formlets` model. The motivation behind
+`digestive-functors` 0.3 was to allow the separation of validators
+from the view code. This allows library authors to define validation
+for forms, but allow the library users to create the view for the
+forms. It also provides a mechanism to support templating systems like
+Heist, where the view is defined in an external XML file rather than
+Haskell code.
 
-In order to achieve this, digestive-functors unlinks the validation
+In order to achieve this, `digestive-functors` unlinks the validation
 and view code and requires the developers to stitch them back together
-using String based names. This leads to runtime errors.
+using `String` based names. This leads to runtime errors.
 
-The formettes library is forked for digestive-functors 0.2 and retains
-the traditional formlets feel. It allows the separation of the view
-and validation code, but does so in a way that retains type safety.
+The `Formettes` library is a heavily modified fork of
+`digestive-functors` 0.2. It builds on the the traditional `formlets`
+safety and style and extends it to allow view and validation
+separation in a type-safe manner.
 
 Hello Form!
 -----------
+
+The `easiest` way to learn `Formettes` is through example. We will
+start with a simple form that does not require any special
+validation. We will then extend to the form, adding some
+validators. And then we will show how to split the validation and view
+into separate pieces of code.
+
+This example uses Happstack for the web server and HSP for the templating library.
+
+First we have some pragmas:
 
 > {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, TypeFamilies, TypeSynonymInstances #-}
 > {-# OPTIONS_GHC -F -pgmFtrhsx #-}
 > module Main where
 
-First we need to import the Formettes library. We need to import three different components, the core library, a server backend, and a template library. In this case we will be using Happstack for the server and HSP for the templating.
+And then some imports. We import modules from three different `Formettes` packages: the core formettes library, the formettes-happstack package, and the formettes-hsp package:
 
 > import Control.Applicative
 > import Happstack.Server
@@ -81,14 +99,13 @@ First we need to import the Formettes library. We need to import three different
 > import Text.Formettes.Happstack
 > import Text.Formettes.HSP.String
 
-
-First we will create a type alias for our applications server monad:
+Next we will create a type alias for our application's server monad:
 
 > type AppT m = XMLGenT (ServerPartT m)
 
 Forms have the type 'Form' which looks like:
 
-    newtype Form m input error view proof a = Form { ... }
+] newtype Form m input error view proof a = Form { ... }
 
 As you will note it is heavily parameterized:
 
@@ -101,11 +118,11 @@ As you will note it is heavily parameterized:
  <dt>a</dt><dd>The value returned when the form data set is successfully decoded.</dd>
 </dl>
 
-In order to keep our type signatures sane, it is convenient to create a type alias to simplify things:
+In order to keep our type signatures sane, it is convenient to create an application specific type alias to simplify things:
 
 > type SimpleForm = Form IO [Input] AppError [AppT IO (XMLType (ServerPartT IO))] ()
 
-`AppError` is used to report form validation errors. Here we have a single, unified error type for all form errors in our application:
+`AppError` is used to report form validation errors. Here we define a single, unified error type for all form errors in our application:
 
 > data AppError
 >     = Required
@@ -116,27 +133,27 @@ In order to keep our type signatures sane, it is convenient to create a type ali
 > instance (Monad m) => EmbedAsChild (ServerPartT m) AppError where
 >     asChild error = <% show error %>
 
-We could instead have a per-form error type -- or even just use String. The advantage of using a type is that it make it easier to providing I18N translations, or for users of a library to customize the error message text.
+We could instead have a per-form error type -- or even just use `String`. The advantage of using a type is that it make it easier to providing I18N translations, or for users of a library to customize the error message text.
 
-The error type needs an `FormError` instance:
+Our error type needs an `FormError` instance:
 
 > instance FormError AppError where
 >     type ErrorInputType AppError = [Input]
 >     commonFormError = Common
 
-Internally, Formettes has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into your custom error type.
+Internally, `Formettes` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
 
 Now we have the groundwork laid to create a simple form. Let's create
-a form that allows you to post a message. First we will want a type to
+a form that allows users to post a message. First we will want a type to
 represent the message -- a simple record will do:
 
 > data Message = Message
->     { name    :: String
->     , title   :: String
->     , message :: String
+>     { name    :: String -- ^ the author's name
+>     , title   :: String -- ^ the message title
+>     , message :: String -- ^ contents of the message
 >     } deriving (Eq, Ord, Read, Show)
 
-Now we can create a very basic form like so:
+Now we can create a very basic form:
 
 > postForm :: SimpleForm Message
 > postForm =
@@ -144,6 +161,8 @@ Now we can create a very basic form like so:
 >      <$> label "name:"            ++> inputText ""       <* br
 >      <*> label "title: "          ++> inputText ""       <* br
 >      <*> (label "message:" <* br) ++> textarea 80 40 ""  <* br
+
+This form contains all the information need to generate the form elements and to parse the submitted form data set and extract a `Message` value.
 
 The `label` function creates a <code>&lt;label&gt;</code> element using the supplied label.
 
@@ -174,20 +193,24 @@ they have the same `FormId` value. The `FormId` value is typically used to creat
 
 There is also a similar operator <++ for when you want the label after the element.
 
-This form is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the String values to another type. However, we do still benefit from Formettes. We create a single form, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set.
+This form is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
 
-We did not have to explicit name our fields, keep the names in-sync in two different places, worry if the html and processing code contain the same set of fields, or worry if a name/id has already been used.
+However, we do still see benefits from `Formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used.
 
 Form with simple validation
 ---------------------------
 
-We can easily modify our form so that all the requires are required. To do that we will create a simple validation function:
+The next step is to perform some validation on the input fields. If the fields validate successfully, then we get a `Message`. But if the input fails to validate, then we want to automatically regenerate the `Form` showing the data the user submitted plus validation errors.
+
+For this example, let's simply make sure they entered something in all the fields. To do that we will create a simple validation function:
 
 > required :: String -> Either AppError String
 > required []  = Left Required
 > required str = Right str
 
-In this case we are simply checking that the `String` is not null, so we return the `String` unmodified. Other times, we might actually transform the value. For example, we might attempt to convert the `String` to an `Integer`. To apply this validation function we can use `transformEither`:
+In this case we are simply checking that the `String` is not null. If it isn't we return an error, otherwise we return the `String` unmodified. Some validators will actually transform the value -- such as converting the `String` to an `Integer`.
+
+To apply this validation function we can use `transformEither`:
 
 ] transformEither :: Monad m =>
 ]                    Form m input error view anyProof a
