@@ -95,7 +95,9 @@ data RealFractional = RealFractional
 data Signed a       = Signed a
 
 -- | read an unsigned number in decimal notation
-decimal :: (Monad m, Eq i, Num i) => (String -> error) -> Proof m error Decimal String i
+decimal :: (Monad m, Eq i, Num i) =>
+           (String -> error) -- ^ create an error message ('String' is the value that did not parse)
+        -> Proof m error Decimal String i
 decimal mkError = Proof Decimal (return . toDecimal)
     where
       toDecimal str =

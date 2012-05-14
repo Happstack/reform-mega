@@ -98,7 +98,6 @@ And then some imports. We import modules from three different `Formettes` packag
 
 > import Control.Applicative
 > import Control.Monad             (msum)
-> import Data.Char                 (isSpace)
 > import Happstack.Server
 > import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
@@ -344,10 +343,8 @@ The next step is to perform some validation on the input fields. If the fields v
 For this example, let's simply make sure they entered something in all the fields. To do that we will create a simple validation function:
 
 > required :: String -> Either AppError String
-> required str =
->     if all isSpace str
->        then Left Required
->        else Right str
+> required []  = Left Required
+> required str = Right str
 
 In this case we are simply checking that the `String` is not null. If it isn't we return an error, otherwise we return the `String` unmodified. Some validators will actually transform the value -- such as converting the `String` to an `Integer`.
 
@@ -400,24 +397,24 @@ A few names have been changed, but everything else is exactly the same.
 Separating Validation and Views
 ===============================
 
-One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using Formettes at well -- in a manner that is both more flexible and which provides greater type safety. The key is the 'proof' parameter which we have so far set to `()` and otherwise ignored.
+One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using `formettes` as well -- in a manner that is both more flexible and which provides greater type safety. The key is the `proof` parameter -- which we have so far set to `()` and otherwise ignored.
 
-In Formettes we divide the work into two pieces:
+In `formettes` we divide the work into two pieces:
 
- 1. Proofs
- 2. a Form that returns a Proved value
+ 1. `Proofs`
+ 2. a `Form` that returns a `Proved` value
 
-This allows the library authors to create Proofs and demand that the `Form` a developer provides satisfies a `Proof`. At the same time, it gives the developer unrestricted control over the layout of the `Form` -- including choice of templating library.
+This allows the library authors to create `Proofs` and demand that a `Form` created by another developer satisfies the `Proof`. At the same time, it gives the developer unrestricted control over the layout of the `Form` -- including choice of templating library.
 
-Let's create a new type alias for `Form` that allows us to actually set the 'proof' parameter.
+Let's create a new type alias for `Form` that allows us to actually set the `proof` parameter:
 
 > type ProofForm proof = Form IO [Input] AppError [AppT IO (XMLType (ServerPartT IO))] proof
 
 First we will explore the `Proof` related code that would go into a library.
 
-The `proof` parameter is used to indicate that something has been proven about a forms return value.
+The `proof` parameter for a `Form` is used to indicate that something has been proven about the form's return value.
 
-Two create a proof we need two things:
+Two create a `proof` we need two things:
 
  1. a type which names the proof
  2. a function which performs the proof
@@ -427,47 +424,60 @@ We wrap those two pieces up into a `Proof`:
 ] data Proof m error proof a b
 ]     = Proof { proofName     :: proof                   -- ^ name of the thing to prove
 ]             , proofFunction :: a -> m (Either error b) -- ^ function which provides the proof
-]            }
+]             }
 
-In `validPostForm`, we checked they input fields were not empty
-strings. We could turn that into a proof by creating a type to name
-that proof:
+In `validPostForm`, we checked that the input fields were not empty
+`Strings`. We could turn that check into a proof by first creating a
+type to name that proof:
 
 > data NotNull = NotNull
 
-and then creating a proof like so:
+and then creating a proof function like this:
 
-> notNullProof :: forall m error a. (Monad m) =>
+> assertNotNull :: (Monad m) => error -> [a] -> m (Either error [a])
+> assertNotNull errorMsg []  = return (Left errorMsg)
+> assertNotNull _        xs  = return (Right xs)
+
+We can then wrap the two pieces up into a proof:
+
+> notNullProof :: (Monad m) =>
 >                 error -- ^ error to return if list is empty
 >              -> Proof m error NotNull [a] [a]
 > notNullProof errorMsg =
 >     Proof { proofName     = NotNull
->           , proofFunction = assertNotNull
+>           , proofFunction = assertNotNull errorMsg
 >           }
->     where
->       assertNotNull :: [a] -> m (Either error [a])
->       assertNotNull [] = return (Left errorMsg)
->       assertNotNull xs  = return (Right xs)
 
-We can also create proofs that combine existing proofs. For example, a `Message` is only valid if all its fields are not null. So, first thing we want to do is create a proof name valid messages:
+We can also create proofs that combine existing proofs. For example, a `Message` is only valid if all its fields are not null. So, first thing we want to do is create a proof name for valid messages:
 
 > data ValidMessage = ValidMessage
 
-The normal `Message` constructor has the type:
+The `Message` constructor has the type:
 
 ] Message :: String -> String -> String -> Message
 
-What we want is a smart constructor that also enforces the proofs:
+For `SimpleForm` we would use `pure` to turn `Message` into a `SimpleForm`:
+
+] mkSimpleMessage :: SimpleForm (String -> String -> String -> Message)
+] mkSimpleMessage = pure Message
+
+For `ProofForm`, we can do the same thing use `ipure`:
 
 > mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
 > mkMessage = ipure (\NotNull NotNull NotNull -> ValidMessage) Message
 
+`mkMessage` can only be applied to `String` values that have been proven `NotNull`.
 
 The library author can then specify that the user supplied form has the type:
 
-] Form ValidMessage Message
+] someFunc :: Form ValidMessage Message -> ...
 
-To construct a form, we use a pattern very similar to what we did when using 'SimpleForm'.
+You will notice that what we have constructed so far has imposes no restrictions on what types of form elements can be used, what template library must be used, or what web server must be used.
+
+To construct a the `Form`, we use a pattern very similar to what we did when using `SimpleForm`. They only real differences are:
+
+ 1. we use `prove` instead of `transformEither`
+ 2. we use `<+*+>` instead of `<*>`
 
 To apply a `Proof` we use the `prove` function:
 
@@ -500,19 +510,19 @@ Type Indexed / Parameterized Applicative Functors
 
 Lets look at the type for `Form` again:
 
-    newtype Form m input error view proof a = Form { ... }
+] newtype Form m input error view proof a = Form { ... }
 
-In order to make an `Applicative` instance of `Form`, all the proof type variables have to be the same and form a Monoid:
+In order to make an `Applicative` instance of `Form`, all the proof type variables must be the same type and must form a `Monoid`:
 
 ] instance (Functor m, Monad m, Monoid view, Monoid proof) => (Form m input error view proof) where ...
 
-for `SimpleForm` we used this instance:
+for `SimpleForm` we used this instance, which is defined for us already in `formettes`:
 
 ] instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error view ()) where
 
-Which looks and feels almost exactly like digestive-functors <= 0.2.
+With this instance, `formettes` feels and works almost exactly like `digestive-functors <= 0.2`.
 
-But, for the provePostForm, that instance won't work for use. mkMessage has the type:
+But, for the `provePostForm`, that instance won't work for us. `mkMessage` has the type:
 
 ] mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
 
@@ -520,9 +530,9 @@ and we want to apply it to `ProofForms` created by:
 
 ] inputText' :: String -> ProofForm NotNull String
 
-Here the proof types don't match up. Instead we need a Applicative Functor that allows use to transform the return value *and* the proof value. We need what, I believe, is called an type-indexed applicative functor or a parameterized applicative functor. Most literature on this subject is actually dealing with type-indexed or parameterized monads, but the idea is the same, or the class names are different.
+Here the proof types don't match up. Instead we need a `Applicative Functor` that allows us to transform the return value *and* the proof value. We need, what I believe is called, a `Type-Indexed Applicative Functor` or a `Parameterized Applicative Functor`. Most literature on this subject is actually dealing with type-indexed or parameterized `Monads`, but the idea is the same.
 
-We define two new classes, `IndexedFunctor` and `IndexedApplicative`:
+The `formettes` library defines two new classes, `IndexedFunctor` and `IndexedApplicative`:
 
 ] class IndexedFunctor f where
 ]     -- | imap is similar to fmap
@@ -542,29 +552,39 @@ These classes look just like their non-indexed counterparts, except that they tr
 ] instance (Monad m)              => IndexedFunctor     (Form m input view error) where
 ] instance (Monad m, Monoid view) => IndexedApplicative (Form m input error view) where
 
-We use this classes the same way we would use the normal `Functor` and `Applicative` classes. The only difference is that the type-checker can now enforce the proofs.
+We use these classes the same way we would use the normal `Functor` and `Applicative` classes. The only difference is that the type-checker can now enforce the proofs.
 
 Using proofs in unproven forms
 ------------------------------
 
 The `Proof` module provides a handful of useful `Proofs` that perform
-transformations, such as converting a String to a Int. We can use this
-`Proofs` with our `SimpleForm` by using the `transform` function:
+transformations, such as converting a `String` to a `Int`:
+
+] decimal :: (Monad m, Eq i, Num i) =>
+]            (String -> error) -- ^ create an error message ('String' is the value that did not parse)
+]         -> Proof m error Decimal String i
+
+We can use this `Proof` with our `SimpleForm` by using the `transform` function:
 
 ] transform :: (Monad m) =>
 ]              Form m input error view anyProof a
 ]           -> Proof m error proof a b
 ]           -> Form m input error view () b
 
-`transform` is similar to the `prove` function, except it ignores the
-proof name and sets the proof to `()`. Technically `()` is still a
-proof -- but we consider it to be the proof that proves nothing. We can then use that to create a simple form that parses a positive Integer value.
+`transform` is similar to the `prove` function, except it ignores the proof name and sets the proof to `()`. Technically `()` is still a proof -- but we consider it to be the proof that proves nothing. We can use `transform` to create a simple form that parses a positive `Integer` value.
 
-> inputInt :: SimpleForm Integer
-> inputInt = inputText "" `transform` (decimal NotANatural)
+> inputInteger :: SimpleForm Integer
+> inputInteger = inputText "" `transform` (decimal NotANatural)
+
+Conclusion
+----------
+
+And, that is the essence of `formettes`. The Haddock documentation should cover the remainder -- such as other types of input controls (radio buttons, checkboxes, etc).
 
 main
 ----
+
+Here is a main function that ties all the examples together:
 
 > main :: IO ()
 > main =
