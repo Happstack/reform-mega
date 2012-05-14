@@ -50,6 +50,15 @@ inputHidden getInput initialValue = G.input getInput inputField initialValue
     where
       inputField i a = [<input type="hidden" id=i name=i value=a />]
 
+inputNamedHidden :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
+             text
+          -> text
+          -> Form m input error [XMLGenT x (XMLType x)] () ()
+inputNamedHidden name initialValue = G.inputNoData inputField initialValue
+    where
+      inputField i a = [<input type="hidden" id=i name=name value=a />]
+
+
 inputButton :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String text)) =>
              text
           -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -250,6 +259,7 @@ li frm = mapView (\xml -> [<li class="formettes"><% xml %></li>]) frm
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
         action                  -- ^ action url
+--     -> [(String, String)]      -- ^ query string parameters
      -> [XMLGenT x (XMLType x)] -- ^ childern
      -> [XMLGenT x (XMLType x)]
 form action children = [<form action=action method="POST" enctype="multipart/form-data"><% children %></form>]

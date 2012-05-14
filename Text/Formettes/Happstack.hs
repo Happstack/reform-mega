@@ -4,16 +4,19 @@ Support for using Formettes with the Haskell Web Framework Happstack. <http://ha
 -}
 module Text.Formettes.Happstack where
 
-import Control.Applicative                 (Alternative, (<$>), optional)
+import Control.Applicative                 (Applicative((<*>)), Alternative, (<$>), (<|>), (*>), optional)
 import Control.Monad                       (msum)
+import Control.Monad.Trans                 (liftIO)
 import Data.ByteString.Lazy                (ByteString)
 import qualified Data.ByteString.Lazy.UTF8 as UTF8
 import Data.Either                         (lefts, rights)
 import Data.Maybe                          (mapMaybe)
+import Data.Monoid                         (Monoid)
+import System.Random                       (randomIO)
 import Text.Formettes.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
-import Text.Formettes.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), eitherForm, runForm, mapView, viewForm)
+import Text.Formettes.Core                 (IndexedApplicative(..), Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
 import Text.Formettes.Result               (Result(..), FormRange)
-import Happstack.Server                    (ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ToMessage(..), lookInputs, escape, method)
+import Happstack.Server                    (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ToMessage(..), addCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie)
 
 -- FIXME: we should really look at Content Type and check for non-UTF-8 encodings
 instance FormInput [Input] where
@@ -41,20 +44,57 @@ happstackForm :: (Happstack m) =>
 happstackForm = eitherForm environment
 
 
+addCSRFCookie :: (Happstack m) => m String
+addCSRFCookie =
+    do i <- liftIO $ randomIO
+       addCookie Session ((mkCookie "formettes-csrf" (show i)) { httpOnly = True })
+       return (show (i :: Integer))
+
+getCSRFCookie :: (Happstack m) => m String
+getCSRFCookie = cookieValue <$> lookCookie "formettes-csrf"
+
+addCSRF :: (Monad m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> Form m [Input] error view proof a
+addCSRF inputHidden token frm =
+    ipure (\() proof -> proof) (\_ a -> a) <+*+> inputHidden "formettes-csrf" token <+*+> frm
+
+csrfView :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m view
+csrfView inputHidden prefix frm =
+    do c <- addCSRFCookie
+       viewForm prefix (addCSRF inputHidden c frm)
+
+csrfForm :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m (View error view, m (Result error (Proved proof a)))
+csrfForm inputHidden prefix frm =
+    do mc <- optional $ getCSRFCookie
+       mi <- optional $ look "formettes-csrf"
+       case (mc, mi) of
+         (Just c, Just c')
+           | c == c'   -> runForm environment prefix (addCSRF inputHidden c frm)
+         _             -> escape $ forbidden (toResponse "CSRF check failed.")
+
+csrfEither :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m (Either view a)
+csrfEither inputHidden prefix frm =
+    do mc <- optional $ getCSRFCookie
+       mi <- optional $ look "formettes-csrf"
+       case (mc, mi) of
+         (Just c, Just c')
+             | c == c' -> eitherForm environment prefix (addCSRF inputHidden c frm)
+         _             -> escape $ forbidden (toResponse "CSRF check failed.")
+
 -- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
-formette :: (ToMessage b, Happstack m, Alternative m) =>
-            (view -> view)                          -- ^ wrap raw form html inside a <form> tag
-         -> String                                  -- ^ prefix
-         -> (a -> m b)                              -- ^ handler used when form validates
-         -> Maybe ([(FormRange, e)] -> view -> m b) -- ^ handler used when form does not validate
-         -> Form m [Input] e view proof a           -- ^ the formlet
+formette :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
+            (String -> String -> Form m [Input] error view () ())
+         -> (view -> view)                              -- ^ wrap raw form html inside a <form> tag
+         -> String                                      -- ^ prefix
+         -> (a -> m b)                                  -- ^ handler used when form validates
+         -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ handler used when form does not validate
+         -> Form m [Input] error view proof a           -- ^ the formlet
          -> m view
-formette toForm prefix handleSuccess mHandleFailure form =
+formette inputHidden toForm prefix handleSuccess mHandleFailure form =
     msum [ do method [GET, HEAD]
-              toForm <$> viewForm prefix form
+              toForm <$> csrfView inputHidden prefix form
 
          , do method POST
-              (v, mresult) <- runForm environment prefix form
+              (v, mresult) <- csrfForm inputHidden prefix form
               result <- mresult
               case result of
                 (Ok a)    -> (escape . fmap toResponse) $ handleSuccess (unProved a)

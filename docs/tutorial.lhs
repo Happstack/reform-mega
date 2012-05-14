@@ -304,7 +304,7 @@ You may have noticed that `postPage` seems to contain a fair amount of boilerpla
 > postPage2 =
 >     dir "post2" $
 >         appTemplate "post 2" () $
->            <% formette (form "/post2") "post2" displayMessage Nothing postForm %>
+>            <% formette inputNamedHidden (form "/post2") "post2" displayMessage Nothing postForm %>
 >     where
 >       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
 
@@ -388,7 +388,7 @@ We can wrap up the `validForm` the same way we did `postForm`:
 > validPage =
 >     dir "valid" $
 >         appTemplate "valid post" () $
->            <% formette (form "/valid") "valid" displayMessage Nothing validPostForm %>
+>            <% formette inputNamedHidden (form "/valid") "valid" displayMessage Nothing validPostForm %>
 >     where
 >       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
 
@@ -597,7 +597,7 @@ Here is a main function that ties all the examples together:
 >                      appTemplate "forms" () $
 >                       <ul>
 >                        <li><a href="/post">Simple Form</a></li>
->                        <li><a href="/post">Simple Form (postPage2 implementation)</a></li>
+>                        <li><a href="/post2">Simple Form (postPage2 implementation)</a></li>
 >                        <li><a href="/valid">Valid Form</a></li>
 >                       </ul>
 >                 ]
