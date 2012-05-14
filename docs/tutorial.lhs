@@ -1,57 +1,58 @@
 Formettes Tutorial
 ==================
 
-Formettes is a library for create type-safe, composable, and validated
+`formettes` is a library for create type-safe, composable, and validated
 HTML forms. It is built around applicative functors and is based on
-the same principles as formlets and digestive-functors < 0.2.
+the same principles as `formlets` and `digestive-functors < 0.2`.
 
-The core formettes library is designed to be portable and can be used
+The core `formettes` library is designed to be portable and can be used
 with a wide variety of Haskell web frameworks and template solutions
 -- though only a few options are supported at the moment.
 
 The most basic method of creating and processing forms with out the
 assistence of formettes is to:
 
- 1. create a &lt;form&gt; tag with the desired elements by hand
+ 1. create a `<form>` tag with the desired elements by hand
 
  2. write code which processed the form data set and tries to extract a value from it
 
 The developer encounters a number of difficulties using this method:
 
- 1. the developer must be careful to use the same 'name' field in the
+ 1. the developer must be careful to use the same `name` field in the
  HTML and the code.
 
  2. if a new field is added to the form, the code must be manually
  updated. Failure to do so while result in the new value being
  silently ignored.
 
- 3. form fragments can not be easily combined because the 'name'
+ 3. form fragments can not be easily combined because the `name` or `id`
  fields might collide.
 
  4. if the form fails to validate, it is difficult to redisplay the
  form with the error messages and data that was submitted.
 
-Formettes solves these problems by combining the view generation code
-and validation code into a single 'Form' element. The 'Form' elements
+`formettes` solves these problems by combining the view generation code
+and validation code into a single `Form` element. The `Form` elements
 can be safely combined to create more complex forms.
 
-In theory, Formettes could be applied to other domains, such as
-command-line or GUI applications. However, Formettes is based around
+In theory, `formettes` could be applied to other domains, such as
+command-line or GUI applications. However, `formettes` is based around
 the pattern of:
 
  1. generate the entire form at once
  2. wait until the user has filled out all the fields and submitted it
  3. process the results and generate an answer or redisplay the form with validation errors
 
-For interactive applications, there is no reason to wait until the
-entire form has been filled out to perform validation.
+For most interactive applications, there is no reason to wait until
+the entire form has been filled out to perform validation.
 
 Brief History
 -------------
 
-Formettes is an extension of the OCaml-based formlets concept
-originally developed by Philip Wadler et al., which was later ported
-to Haskell as the `formlets` library, and then revamped again as the
+`formettes` is an extension of the OCaml-based formlets concept
+originally developed by Ezra Cooper, Sam Lindley, Philip Wadler and
+Jeremy Yallop. The original formlets code was ported to Haskell as the
+`formlets` library, and then revamped again as the
 `digestive-functors` library.
 
 The `digestive-functors` 0.3 represents a major break from the
@@ -72,36 +73,62 @@ The `Formettes` library is a heavily modified fork of
 safety and style and extends it to allow view and validation
 separation in a type-safe manner.
 
+
+You can find the original papers on `formlets` [here](http://groups.inf.ed.ac.uk/links/formlets/).
+
+
 Hello Form!
 -----------
 
-The `easiest` way to learn `Formettes` is through example. We will
+The easiest way to learn `Formettes` is through example. We will
 start with a simple form that does not require any special
-validation. We will then extend to the form, adding some
-validators. And then we will show how to split the validation and view
+validation. We will then extend the form, adding some
+simple validators. And then we will show how to split the validation and view
 into separate pieces of code.
 
 This example uses Happstack for the web server and HSP for the templating library.
 
 First we have some pragmas:
 
-> {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, TypeFamilies, TypeSynonymInstances #-}
+> {-# LANGUAGE FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, TypeFamilies, TypeSynonymInstances #-}
 > {-# OPTIONS_GHC -F -pgmFtrhsx #-}
 > module Main where
 
-And then some imports. We import modules from three different `Formettes` packages: the core formettes library, the formettes-happstack package, and the formettes-hsp package:
+And then some imports. We import modules from three different `Formettes` packages: the core `formettes` library, the `formettes-happstack` package, and the `formettes-hsp` package:
 
 > import Control.Applicative
+> import Control.Monad             (msum)
+> import Data.Char                 (isSpace)
 > import Happstack.Server
+> import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
 > import HSP
-> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<+*+>), prove, transformEither, transform, decimal)
+> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<++), (<+*+>), decimal, prove, transformEither, transform, viewForm)
 > import Text.Formettes.Happstack
 > import Text.Formettes.HSP.String
 
 Next we will create a type alias for our application's server monad:
 
 > type AppT m = XMLGenT (ServerPartT m)
+
+We will also want a function that generates a page template for our app:
+
+> appTemplate :: (Functor m, Monad m, EmbedAsChild (ServerPartT m) headers, EmbedAsChild (ServerPartT m) body) =>
+>                String     -- ^ contents of <title> tag
+>             -> headers    -- ^ extra content for <head> tag, use () for nothing
+>             -> body       -- ^ contents of <body> tag
+>             -> AppT m Response
+> appTemplate title headers body =
+>   toResponse <$>
+>     <html>
+>      <head>
+>       <title><% title %></title>
+>       <% headers %>
+>      </head>
+>      <body>
+>       <% body %>
+>      </body>
+>     </html>
 
 Forms have the type 'Form' which looks like:
 
@@ -110,19 +137,19 @@ Forms have the type 'Form' which looks like:
 As you will note it is heavily parameterized:
 
 <dl>
- <dt>m</dt><dd>a monad which can be used to validate the result</dd>
- <dt>input</dt><dd>the framework specific type containing the fields from the form data set.</dd>
- <dt>error</dt><dd>An application specific type for form validation errors.</dd>
- <dt>view</dt><dd>The type of the view for the form.</dd>
- <dt>proof</dt><dd>A datatype which names something that has been proved about the result</dd>
- <dt>a</dt><dd>The value returned when the form data set is successfully decoded.</dd>
+ <dt><code>m</code></dt><dd>a monad which can be used to validate the result</dd>
+ <dt><code>input</code></dt><dd>the framework specific type containing the fields from the form data set.</dd>
+ <dt><code>error</code></dt><dd>An application specific type for form validation errors.</dd>
+ <dt><code>view</code></dt><dd>The type of the view for the form.</dd>
+ <dt><code>proof</code></dt><dd>A datatype which names something that has been proved about the result</dd>
+ <dt><code>a</code></dt><dd>The value returned when the form data set is successfully decoded.</dd>
 </dl>
 
 In order to keep our type signatures sane, it is convenient to create an application specific type alias to simplify things:
 
-> type SimpleForm = Form IO [Input] AppError [AppT IO (XMLType (ServerPartT IO))] ()
+> type SimpleForm = Form (AppT IO) [Input] AppError [AppT IO (XMLType (ServerPartT IO))] ()
 
-`AppError` is used to report form validation errors. Here we define a single, unified error type for all form errors in our application:
+`AppError` is an application specific type used to report form validation errors:
 
 > data AppError
 >     = Required
@@ -130,18 +157,21 @@ In order to keep our type signatures sane, it is convenient to create an applica
 >     | Common (CommonFormError [Input])
 >       deriving Show
 
+
+Instead of have one error type for all the forms, we could have per-form error types -- or even just use `String`. The advantage of using a type is that it make it easier to providing I18N translations, or for users of a library to customize the error message text. The disadvantage of using a custom type over a plain `String` is that it can make it more difficult to combine forms into larger forms since they must all have the same error type.
+
+We will want an `EmbedAsChild` instance so that we can easily embed the errors in our HTML:
+
 > instance (Monad m) => EmbedAsChild (ServerPartT m) AppError where
 >     asChild error = <% show error %>
 
-We could instead have a per-form error type -- or even just use `String`. The advantage of using a type is that it make it easier to providing I18N translations, or for users of a library to customize the error message text.
-
-Our error type needs an `FormError` instance:
+The error type also needs a `FormError` instance:
 
 > instance FormError AppError where
 >     type ErrorInputType AppError = [Input]
 >     commonFormError = Common
 
-Internally, `Formettes` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
+Internally, `formettes` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
 
 Now we have the groundwork laid to create a simple form. Let's create
 a form that allows users to post a message. First we will want a type to
@@ -153,28 +183,41 @@ represent the message -- a simple record will do:
 >     , message :: String -- ^ contents of the message
 >     } deriving (Eq, Ord, Read, Show)
 
+and a simple function to render the `Message` as `XML`:
+
+> renderMessage :: (Monad m) => Message -> AppT m XML
+> renderMessage msg =
+>     <dl>
+>       <dt>name:</dt>    <dd><% name msg    %></dd>
+>       <dt>title:</dt>   <dd><% title msg   %></dd>
+>       <dt>message:</dt> <dd><% message msg %></dd>
+>     </dl>
+
 Now we can create a very basic form:
 
 > postForm :: SimpleForm Message
 > postForm =
 >     Message
->      <$> label "name:"            ++> inputText ""       <* br
->      <*> label "title: "          ++> inputText ""       <* br
->      <*> (label "message:" <* br) ++> textarea 80 40 ""  <* br
+>      <$> label "name:"            ++> inputText ""       <++ br
+>      <*> label "title: "          ++> inputText ""       <++ br
+>      <*> (label "message:" <* br) ++> textarea 80 40 ""  <++ br
+>      <*  inputSubmit "post"
 
-This form contains all the information need to generate the form elements and to parse the submitted form data set and extract a `Message` value.
+This form contains all the information needed to generate the form elements and to parse the submitted form data set and extract a `Message` value.
 
-The `label` function creates a <code>&lt;label&gt;</code> element using the supplied label.
+The `label` function creates a `<label>` element using the supplied label.
 
-The `inputText` function creates a <code>&lt;input type="text"&gt;</code> input element using the argument as the initial value.
+The `inputText` function creates a `<input type="text">` input element using the argument as the initial value.
 
-The `textarea` function creates <code>&lt;textearea&gt;</code>. The arguments are the number of cols, rows, and initial contents.
+The `inputSubmit` function creates a `<input type="submit">` using the argument as the value.
 
-The `br` functions creates a `Form` element that doesn't do anything except insert a <code>&lt;br&gt;</code> tag.
+The `textarea` function creates `<textearea>`. The arguments are the number of cols, rows, and initial contents.
+
+The `br` functions creates a `Form` element that doesn't do anything except insert a `<br>` tag.
 
 The `<$>`, `<*>` and `<*` operators come from `Control.Applicative`. If you are not familiar with applicative functors then you will want to read a [tutorial such as this one](http://en.wikibooks.org/wiki/Haskell/Applicative_Functors).
 
-`++>` comes from the Formettes library and has the type:
+`++>` comes from the `formettes` library and has the type:
 
 ] (++>) :: (Monad m, Monoid view) =>
 ]          Form m input error view () ()
@@ -185,7 +228,7 @@ The `++>` operator is similar to the `*>` operator with one important difference
 
 ] label "name: " *> inputText
 
-then the `label` and `inputText` which each have unique `FormId` values. But when we write:
+then the `label` and `inputText` would each have unique `FormId` values. But when we write:
 
 ] label "name: " ++> inputText
 
@@ -193,20 +236,118 @@ they have the same `FormId` value. The `FormId` value is typically used to creat
 
 There is also a similar operator <++ for when you want the label after the element.
 
-This form is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
+Using the form
+--------------
 
-However, we do still see benefits from `Formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used.
+The easiest way to use a `Form` are the `viewForm` and `eitherForm` functions.
+
+If you are simply rendering the form for a `GET` request, then you probably want `viewForm` which will render the form using `NoEnviroment`:
+
+] viewForm :: (Monad m) =>
+]            String                           -- ^ form prefix
+]         -> Form m input error view proof a  -- ^ form to view
+]         -> m view
+
+The form prefix is a `String` that gets prepended to the automatically generated `FormIds`. This is used to ensure that every form on the the page has unique `FormIds`. While it is ok if multiple `<form>` elements on the same page reuse `name` attributes -- they must still have unique `id` attributes. Hence the need for a unique prefix.
+
+The easiest way to handle a `POST` request is to use the `eitherForm` function.
+
+] eitherForm :: Monad m =>
+]               Environment m input             -- ^ Input environment
+]            -> String                          -- ^ form prefix
+]            -> Form m input error view proof a -- ^ Form to run
+]            -> m (Either view a)               -- ^ Result
+
+If the form validates successfully then `eitherForm` will return `Right a`. If the form fails to validate, then it returns `Left view`. The `view` will contain the form already prepopulated with the data the user submitted plus the validation error messages.
+
+The `Environment m input` argument tells the `formette` code how to retrieve and decode the form data set -- it is specific to each web framework. `happstack-formettes` exports:
+
+] environment :: (Happstack m) => Environment m [Input]
+
+And also a simple wrapper function:
+
+] happstackForm :: (Happstack m) =>
+]                  String                            -- ^ form prefix
+]               -> Form m [Input] error view proof a -- ^ Form to run
+]               -> m (Either view a)                 -- ^ Result
+] happstackForm = eitherForm environment
+
+Using these functions we can not create a simple app which uses our form. First we will create a simple page handler for the form:
+
+> postPage :: AppT IO Response
+> postPage =
+>     dir "post" $
+>         msum [ do method GET
+>                   appTemplate "post" ()
+>                     <form action="/post" method="POST" enctype="multipart/form-data">
+>                       <%  viewForm "post" postForm %>
+>                     </form>
+>              , do method POST
+>                   result <- happstackForm "post" postForm
+>                   case result of
+>                     (Left view) ->
+>                            appTemplate "post" ()
+>                              <form action="/post" method="POST" enctype="multipart/form-data">
+>                               <% viewForm "post" postForm %>
+>                              </form>
+>                     (Right msg) ->
+>                            appTemplate "Your Message" () $ renderMessage msg
+>              ]
+
+Note that `viewForm` and `eitherForm` do not generate the `<form>` tag -- only its children.
+
+`formette` function
+-------------------
+
+You may have noticed that `postPage` seems to contain a fair amount of boilerplate and ways to screw things up. `happstack-formettes` exports a `formette` function which reduces the amount of boilerplate required:
+
+> postPage2 :: AppT IO Response
+> postPage2 =
+>     dir "post2" $
+>         appTemplate "post 2" () $
+>            <% formette (form "/post2") "post2" displayMessage Nothing postForm %>
+>     where
+>       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
+
+`formette` has a pretty intense looking type signature but it is actually pretty straight-forward:
+
+] -- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
+] formette :: (ToMessage b, Happstack m, Alternative m) =>
+]             (view -> view)                          -- ^ wrap raw form html inside a <form> tag
+]          -> String                                  -- ^ prefix
+]          -> (a -> m b)                              -- ^ handler used when form validates
+]          -> Maybe ([(FormRange, e)] -> view -> m b) -- ^ handler used when form does not validate
+]          -> Form m [Input] e view proof a           -- ^ the formlet
+]          -> m view
+] formette toForm prefix handleSuccess mHandleFailure form = ...
+
+<dl>
+ <dt>toForm</dt><dd>should wrap the view returned by the form in a `<form>` tag. Here we use the `form` function from `happstack-hsp`. The first argument to `form` is the `action` url.</dd>
+ <dt>prefix</dt><dd>the `FormId` prefix to use when rendering this form.</dd>
+ <dt>handleSuccess</dt><dd>is the function to call if the form validates successfully. It gets the value extracted from the form.</dd>
+ <dt>hHandleFailure</dt><dd>is a function to call if for validation fails. If you pass in `Nothing` then the form will simple by redisplayed in the original context.</dd>
+ <dt>form</dt>is the `Form` to process.
+</dl>
+
+benefits so far
+---------------
+
+The form we have so far is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
+
+However, we do still see benefits from `formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used.
 
 Form with simple validation
 ---------------------------
 
-The next step is to perform some validation on the input fields. If the fields validate successfully, then we get a `Message`. But if the input fails to validate, then we want to automatically regenerate the `Form` showing the data the user submitted plus validation errors.
+The next step is to perform some validation on the input fields. If the fields validate successfully, then we get a `Message`. But if the input fails to validate, then we will automatically regenerate the `Form` showing the data the user submitted plus validation errors.
 
 For this example, let's simply make sure they entered something in all the fields. To do that we will create a simple validation function:
 
 > required :: String -> Either AppError String
-> required []  = Left Required
-> required str = Right str
+> required str =
+>     if all isSpace str
+>        then Left Required
+>        else Right str
 
 In this case we are simply checking that the `String` is not null. If it isn't we return an error, otherwise we return the `String` unmodified. Some validators will actually transform the value -- such as converting the `String` to an `Integer`.
 
@@ -221,20 +362,20 @@ We can update our form to:
 
 > validPostForm :: SimpleForm Message
 > validPostForm =
->     Message <$> name <*> title <*> msg
+>     Message <$> name <*> title <*> msg <*  inputSubmit "post"
 >         where
->           name  = errorList ++> label "name:"            ++> (inputText "" `transformEither` required) <* br
->           title = errorList ++> label "title:"           ++> (inputText "" `transformEither` required) <* br
->           msg   = errorList ++> (label "message:" <* br) ++> textarea 80 40 ""                         <* br
+>           name  = errorList ++> label "name:"             ++> (inputText ""      `transformEither` required) <++ br
+>           title = errorList ++> label "title:"            ++> (inputText ""      `transformEither` required) <++ br
+>           msg   = errorList ++> (label "message:" <++ br) ++> (textarea 80 40 "" `transformEither` required) <++ br
 
-The `errorList` will add a list of error messages to a 'Form'
+The `errorList` will add a list of error messages to a `Form`
 element. This gives greater control over where error messages appear
 in the form. The list of errors is literally a list of errors inside
 an:
 
-    &lt;ul class="formettes-error-list"&gt;
+    <ul class="formettes-error-list">
 
-You can use .css to control the theming.
+You can use CSS to control the theming.
 
 For even greater control we could use the `Text.Formettes.Generalized.errors` function:
 
@@ -242,12 +383,24 @@ For even greater control we could use the `Text.Formettes.Generalized.errors` fu
 ]           ([error] -> view) -- ^ function to convert the error messages into a view
 ]        -> Form m input error view () ()
 
-This allows you to provide your own custom code for rendering the errors.
+This allows you to provide your own custom view code for rendering the errors.
+
+We can wrap up the `validForm` the same way we did `postForm`:
+
+> validPage :: AppT IO Response
+> validPage =
+>     dir "valid" $
+>         appTemplate "valid post" () $
+>            <% formette (form "/valid") "valid" displayMessage Nothing validPostForm %>
+>     where
+>       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
+
+A few names have been changed, but everything else is exactly the same.
 
 Separating Validation and Views
 ===============================
 
-One of the primary motivations behind the changes in digestive-functors 0.3 is allowing developers to separate the validation code from the code which generates the view. We can do this using Formettes at well -- in a manner that is both more flexible and which provides greater type safety. The key is the 'proof' parameter which we have so far set to `()` and otherwise ignored.
+One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using Formettes at well -- in a manner that is both more flexible and which provides greater type safety. The key is the 'proof' parameter which we have so far set to `()` and otherwise ignored.
 
 In Formettes we divide the work into two pieces:
 
@@ -409,3 +562,22 @@ proof -- but we consider it to be the proof that proves nothing. We can then use
 
 > inputInt :: SimpleForm Integer
 > inputInt = inputText "" `transform` (decimal NotANatural)
+
+main
+----
+
+> main :: IO ()
+> main =
+>     simpleHTTP nullConf $ unXMLGenT $
+>         do decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000)
+>            msum [ postPage
+>                 , postPage2
+>                 , validPage
+>                 , do nullDir
+>                      appTemplate "forms" () $
+>                       <ul>
+>                        <li><a href="/post">Simple Form</a></li>
+>                        <li><a href="/post">Simple Form (postPage2 implementation)</a></li>
+>                        <li><a href="/valid">Valid Form</a></li>
+>                       </ul>
+>                 ]
