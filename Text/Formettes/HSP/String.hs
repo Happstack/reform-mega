@@ -36,6 +36,7 @@ module Text.Formettes.HSP.String
     , ol
     , ul
     , li
+    , form
     ) where
 
 import HSP
@@ -215,4 +216,9 @@ li :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
    -> Form m input error [XMLGenT x (XMLType x)] proof a
 li = C.li
 
-
+-- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
+form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
+        action                  -- ^ action url
+     -> [XMLGenT x (XMLType x)] -- ^ childern
+     -> [XMLGenT x (XMLType x)]
+form = C.form
