@@ -249,22 +249,22 @@ instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error vi
 -- | Run a form
 --
 runForm :: (Monad m) =>
-           String
-        -> Environment m input
+           Environment m input
+        -> String
         -> Form m input error view proof a
         -> m (View error view, m (Result error (Proved proof a)))
-runForm prefix env form =
+runForm env prefix form =
     evalStateT (runReaderT (unForm form) env) (unitRange (zeroId prefix))
 
 -- | Run a form
 --
 runForm' :: (Monad m) =>
-           String
-        -> Environment m input
+            Environment m input
+         -> String
         -> Form m input error view proof a
         -> m (view , Maybe a)
-runForm' prefix env form =
-    do (view', mresult) <- runForm prefix env form
+runForm' env prefix form =
+    do (view', mresult) <- runForm env prefix form
        result <- mresult
        return $ case result of
                   Error e  -> (unView view' e , Nothing)
@@ -273,9 +273,12 @@ runForm' prefix env form =
 -- | Just evaluate the form to a view. This usually maps to a GET request in the
 -- browser.
 --
-viewForm :: (Monad m) => String -> Form m input error view proof a -> m view
+viewForm :: (Monad m) =>
+            String                          -- ^ form prefix
+         -> Form m input error view proof a -- ^ form to view
+         -> m view
 viewForm prefix form =
-    do (v, _) <- runForm prefix NoEnvironment form
+    do (v, _) <- runForm NoEnvironment prefix form
        return (unView v [])
 
 -- | Evaluate a form
@@ -286,13 +289,13 @@ viewForm prefix form =
 --
 -- [@Right a@] on success.
 --
-eitherForm :: Monad m
-           => String                          -- ^ Identifier for the form
-           -> Environment m input             -- ^ Input environment
+eitherForm :: (Monad m) =>
+              Environment m input             -- ^ Input environment
+           -> String                          -- ^ Identifier for the form
            -> Form m input error view proof a -- ^ Form to run
            -> m (Either view a)               -- ^ Result
-eitherForm form id' env = do
-    (view', mresult) <- runForm form id' env
+eitherForm env id' form = do
+    (view', mresult) <- runForm env id' form
     result <- mresult
     return $ case result of
         Error e  -> Left $ unView view' e
@@ -301,8 +304,8 @@ eitherForm form id' env = do
 -- | create a 'Form' from some @view@.
 --
 -- This is typically used to turn markup like @\<br\>@ into a 'Form'.
-view :: Monad m
-     => view                           -- ^ View to insert
+view :: (Monad m) =>
+        view                           -- ^ View to insert
      -> Form m input error view () ()  -- ^ Resulting form
 view view' =
   Form $
