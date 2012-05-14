@@ -53,58 +53,42 @@ addCSRFCookie =
 getCSRFCookie :: (Happstack m) => m String
 getCSRFCookie = cookieValue <$> lookCookie "formettes-csrf"
 
-addCSRF :: (Monad m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> Form m [Input] error view proof a
-addCSRF inputHidden token frm =
-    ipure (\() proof -> proof) (\_ a -> a) <+*+> inputHidden "formettes-csrf" token <+*+> frm
-
-csrfView :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m view
-csrfView inputHidden prefix frm =
-    do c <- addCSRFCookie
-       viewForm prefix (addCSRF inputHidden c frm)
-
-csrfForm :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m (View error view, m (Result error (Proved proof a)))
-csrfForm inputHidden prefix frm =
+checkCSRF :: (Happstack m) => m ()
+checkCSRF =
     do mc <- optional $ getCSRFCookie
        mi <- optional $ look "formettes-csrf"
        case (mc, mi) of
          (Just c, Just c')
-           | c == c'   -> runForm environment prefix (addCSRF inputHidden c frm)
-         _             -> escape $ forbidden (toResponse "CSRF check failed.")
-
-csrfEither :: (Happstack m, Monoid view) => (String -> String -> Form m [Input] error view () ()) -> String -> Form m [Input] error view proof a -> m (Either view a)
-csrfEither inputHidden prefix frm =
-    do mc <- optional $ getCSRFCookie
-       mi <- optional $ look "formettes-csrf"
-       case (mc, mi) of
-         (Just c, Just c')
-             | c == c' -> eitherForm environment prefix (addCSRF inputHidden c frm)
-         _             -> escape $ forbidden (toResponse "CSRF check failed.")
+             | c == c' -> return ()
+         _ -> escape $ forbidden (toResponse "CSRF check failed.")
 
 -- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
 formette :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
-            (String -> String -> Form m [Input] error view () ())
-         -> (view -> view)                              -- ^ wrap raw form html inside a <form> tag
+            ((String, String) -> [(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
          -> String                                      -- ^ prefix
          -> (a -> m b)                                  -- ^ handler used when form validates
          -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ handler used when form does not validate
          -> Form m [Input] error view proof a           -- ^ the formlet
          -> m view
-formette inputHidden toForm prefix handleSuccess mHandleFailure form =
+formette toForm prefix handleSuccess mHandleFailure form =
     msum [ do method [GET, HEAD]
-              toForm <$> csrfView inputHidden prefix form
+              csrfToken <- addCSRFCookie
+              toForm ("formettes-csrf", csrfToken) [] <$> viewForm prefix form
 
          , do method POST
-              (v, mresult) <- csrfForm inputHidden prefix form
+              checkCSRF
+              (v, mresult) <- runForm environment prefix form
               result <- mresult
               case result of
                 (Ok a)    -> (escape . fmap toResponse) $ handleSuccess (unProved a)
                 (Error errors) ->
-                    case mHandleFailure of
-                      (Just handleFailure) ->
-                          (escape . fmap toResponse) $
-                             handleFailure errors (toForm (unView v errors))
-                      Nothing ->
-                          return $ toForm (unView v errors)
+                    do csrfToken <- addCSRFCookie
+                       case mHandleFailure of
+                         (Just handleFailure) ->
+                             (escape . fmap toResponse) $
+                               handleFailure errors (toForm ("formettes-csrf", csrfToken) [] (unView v errors))
+                         Nothing ->
+                             return $ toForm ("formettes-csrf", csrfToken) [] (unView v errors)
          ]
 
 {-

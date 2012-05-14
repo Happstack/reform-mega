@@ -12,7 +12,6 @@ module Text.Formettes.HSP.String
     , inputSubmit
     , inputReset
     , inputHidden
-    , inputNamedHidden
     , inputButton
     , inputCheckbox
     , inputCheckboxes
@@ -78,15 +77,6 @@ inputHidden :: (Monad m, FormInput input, FormError error, ErrorInputType error 
                String -- ^ value to store in the hidden element
             -> Form m input error [XMLGenT x (XMLType x)] () String
 inputHidden initialValue = C.inputHidden getInputString initialValue
-
--- | Create an @\<input type=\"hidden\"\>@ element with a specific 'name' attribute
---
--- WARNING: it is up to the user to somehow ensure the name is unique
-inputNamedHidden :: (Monad m, FormError error, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
-             String
-          -> String
-          -> Form m input error [XMLGenT x (XMLType x)] () ()
-inputNamedHidden = C.inputNamedHidden
 
 -- | Create an @\<input type=\"button\"\>@ element
 --
@@ -229,6 +219,8 @@ li = C.li
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
         action                  -- ^ action url
+     -> (String, String)        -- ^ extra hidden field to add for CSRF protection
+     -> [(String,String)]       -- ^ query string parameters to add to URL
      -> [XMLGenT x (XMLType x)] -- ^ childern
      -> [XMLGenT x (XMLType x)]
 form = C.form
