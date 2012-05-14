@@ -250,13 +250,16 @@ li frm = mapView (\xml -> [<li class="formettes"><% xml %></li>]) frm
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
         action                  -- ^ action url
-     -> (String, String)        -- ^ extra hidden field to add for CSRF protection
-     -> [(String,String)]       -- ^ query string parameters to add to URL
+     -> [(String,String)]       -- ^ hidden fields to add to form
      -> [XMLGenT x (XMLType x)] -- ^ childern
      -> [XMLGenT x (XMLType x)]
-form action (name, value) ps children
+form action hidden children
     = [ <form action=action method="POST" enctype="multipart/form-data">
-         <input type="hidden" name=name value=value />
+         <% mapM mkHidden hidden %>
          <% children %>
         </form>
       ]
+    where
+      mkHidden (name, value) =
+          <input type="hidden" name=name value=value />
+

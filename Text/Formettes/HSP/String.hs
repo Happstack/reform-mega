@@ -219,8 +219,7 @@ li = C.li
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
         action                  -- ^ action url
-     -> (String, String)        -- ^ extra hidden field to add for CSRF protection
-     -> [(String,String)]       -- ^ query string parameters to add to URL
+     -> [(String,String)]       -- ^ extra hidden fields to add to form
      -> [XMLGenT x (XMLType x)] -- ^ childern
      -> [XMLGenT x (XMLType x)]
 form = C.form
