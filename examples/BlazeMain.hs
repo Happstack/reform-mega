@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeFamilies, OverloadedStrings #-}
 module Main where
 
+import Control.Applicative.Indexed
 import Control.Monad
 import qualified Data.ByteString.Char8 as C
 import Text.Blaze ((!), Html)
@@ -24,7 +25,7 @@ usernameForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                      String
                   -> Form m input (DemoFormError input) Html NotNull Username
 usernameForm initialValue =
-    errorList ++> (label "username: " ++> (Username <+$+> inputText initialValue `prove` (notNullProof InvalidUsername)))
+    errorList ++> (label "username: " ++> (Username <<$>> inputText initialValue `prove` (notNullProof InvalidUsername)))
 
 emailForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                   String
@@ -56,7 +57,7 @@ formHandler form =
                   ok $ blazeResponse $ blazeForm html
 
              , do method POST
-                  r <- eitherForm "user" environment form
+                  r <- eitherForm environment "user" form
                   case r of
                     (Right a) -> ok $ toResponse $ show a
                     (Left view) ->

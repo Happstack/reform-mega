@@ -97,12 +97,14 @@ First we have some pragmas:
 And then some imports. We import modules from three different `Formettes` packages: the core `formettes` library, the `formettes-happstack` package, and the `formettes-hsp` package:
 
 > import Control.Applicative
+> import Control.Applicative.Indexed (IndexedFunctor(..), IndexedApplicative(..))
 > import Control.Monad             (msum)
 > import Happstack.Server
 > import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
 > import HSP
-> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<++), (<<*>>), decimal, prove, transformEither, transform, viewForm)
+> import Text.Formettes ( CommonFormError(..), Form, FormError(..), Proof(..), (++>)
+>                        , (<++), decimal, prove, transformEither, transform, viewForm)
 > import Text.Formettes.Happstack
 > import Text.Formettes.HSP.String
 

@@ -2,7 +2,7 @@
 {- |
 This module provides functions creating Formettes using HSP markup.
 
-This module assumes that you wish for text based controls such as 'inputText' and 'textarea' to using 'String' values. If you prefer Text see "Text.Formettes.HSP.Text".
+This module assumes that you wish for text based controls such as 'inputText' and 'textarea' to using 'String' values. If you prefer 'Data.Text.Text' see "Text.Formettes.HSP.Text".
 
 -}
 module Text.Formettes.HSP.String
@@ -67,6 +67,8 @@ inputSubmit :: (Monad m, FormInput input, FormError error, ErrorInputType error 
 inputSubmit initialValue = C.inputSubmit getInputString initialValue
 
 -- | Create an @\<input type=\"reset\"\>@ element
+--
+-- This element does not add any data to the form data set.
 inputReset :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
               String -- ^ value attribute. Used only to label the button.
            -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -80,7 +82,7 @@ inputHidden initialValue = C.inputHidden getInputString initialValue
 
 -- | Create an @\<input type=\"button\"\>@ element
 --
--- creates a push button with a text label. This button does nothing by default. Actions can be added using javascript.
+-- The element is a push button with a text label. The button does nothing by default, but actions can be added using javascript. This element does not add any data to the form data set.
 --
 -- see also: 'C.button'
 inputButton :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
@@ -120,15 +122,15 @@ inputCheckbox = C.inputCheckbox
 -- | Create a group of @\<input type=\"checkbox\"\>@ elements
 --
 inputCheckboxes :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-                   [(a, lbl)]  -- ^ value, label
-                -> (a -> Bool) -- ^ function which marks if a value should be checked (aka, selected) initially or not
+                   [(a, lbl)]  -- ^ (value, label)
+                -> (a -> Bool) -- ^ function which marks if a value should be checked (aka, selected) initially or not. Can match zero or more elements.
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
 inputCheckboxes = C.inputCheckboxes
 
 -- | Create a group of @\<input type=\"radio\"\>@ elements
 inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-              [(a, lbl)]  -- ^ value, label, initially checked
-           -> (a -> Bool) -- ^ isDefault
+              [(a, lbl)]  -- ^ (value, label)
+           -> (a -> Bool) -- ^ predicate which returns @True@ if @a@ should be initially checked. Must match exactly one value in the previous argument.
            -> Form m input error [XMLGenT x (XMLType x)] () a
 inputRadio = C.inputRadio
 
@@ -140,6 +142,8 @@ inputFile :: (Monad m, FormError error, FormInput input, ErrorInputType error ~ 
 inputFile = C.inputFile
 
 -- | create a  @\<button type=\"reset\"\>\<\/button\>@ element
+--
+-- This element does not add any data to the form data set.
 buttonReset :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)
                 ) =>
                children -- ^ children of the @<\/button\>@ element
@@ -147,6 +151,8 @@ buttonReset :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x childr
 buttonReset = C.buttonReset
 
 -- | create a  @\<button type=\"button\"\>\<\/button\>@ element
+--
+-- This element does not add any data to the form data set.
 button :: ( Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)) =>
           children -- ^ children to embed in the \<button\>
        -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -156,8 +162,8 @@ button = C.button
 --
 -- see also: 'selectMultiple'
 select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-              [(a, lbl)]  -- ^ value, label
-           -> (a -> Bool) -- ^ isDefault, must match *exactly one* element in the list of choices
+              [(a, lbl)]  -- ^ (value, label)
+           -> (a -> Bool) -- ^ specifies which value is initially selected. Must match *exactly one* element in the list of choices
            -> Form m input error [XMLGenT x (XMLType x)] () a
 select = C.select
 
@@ -165,8 +171,8 @@ select = C.select
 --
 -- This creates a @\<select\>@ element which allows more than one item to be selected.
 selectMultiple :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
-                  [(a, lbl)]  -- ^ value, label, initially checked
-               -> (a -> Bool) -- ^ isSelected initially
+                  [(a, lbl)]  -- ^ (value, label)
+               -> (a -> Bool) -- ^ specifies which values are initially selected. Can match 0 or more elements.
                -> Form m input error [XMLGenT x (XMLType x)] () [a]
 selectMultiple = C.selectMultiple
 

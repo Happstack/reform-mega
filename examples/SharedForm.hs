@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module SharedForm where
 
+import Control.Applicative.Indexed
 import Text.Formettes
 
 data DemoFormError input
