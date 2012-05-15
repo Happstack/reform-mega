@@ -1,16 +1,16 @@
-Formettes Tutorial
+Reform Tutorial
 ==================
 
-`formettes` is a library for create type-safe, composable, and validated
+`reform` is a library for create type-safe, composable, and validated
 HTML forms. It is built around applicative functors and is based on
 the same principles as `formlets` and `digestive-functors < 0.2`.
 
-The core `formettes` library is designed to be portable and can be used
+The core `reform` library is designed to be portable and can be used
 with a wide variety of Haskell web frameworks and template solutions
 -- though only a few options are supported at the moment.
 
 The most basic method of creating and processing forms with out the
-assistence of formettes is to:
+assistence of reform is to:
 
  1. create a `<form>` tag with the desired elements by hand
 
@@ -31,12 +31,12 @@ The developer encounters a number of difficulties using this method:
  4. if the form fails to validate, it is difficult to redisplay the
  form with the error messages and data that was submitted.
 
-`formettes` solves these problems by combining the view generation code
+`reform` solves these problems by combining the view generation code
 and validation code into a single `Form` element. The `Form` elements
 can be safely combined to create more complex forms.
 
-In theory, `formettes` could be applied to other domains, such as
-command-line or GUI applications. However, `formettes` is based around
+In theory, `reform` could be applied to other domains, such as
+command-line or GUI applications. However, `reform` is based around
 the pattern of:
 
  1. generate the entire form at once
@@ -49,7 +49,7 @@ the entire form has been filled out to perform validation.
 Brief History
 -------------
 
-`formettes` is an extension of the OCaml-based formlets concept
+`reform` is an extension of the OCaml-based formlets concept
 originally developed by Ezra Cooper, Sam Lindley, Philip Wadler and
 Jeremy Yallop. The original formlets code was ported to Haskell as the
 `formlets` library, and then revamped again as the
@@ -68,7 +68,7 @@ In order to achieve this, `digestive-functors` unlinks the validation
 and view code and requires the developers to stitch them back together
 using `String` based names. This leads to runtime errors.
 
-The `Formettes` library is a heavily modified fork of
+The `Reform` library is a heavily modified fork of
 `digestive-functors` 0.2. It builds on the the traditional `formlets`
 safety and style and extends it to allow view and validation
 separation in a type-safe manner.
@@ -80,7 +80,7 @@ You can find the original papers on `formlets` [here](http://groups.inf.ed.ac.uk
 Hello Form!
 -----------
 
-The easiest way to learn `Formettes` is through example. We will
+The easiest way to learn `Reform` is through example. We will
 start with a simple form that does not require any special
 validation. We will then extend the form, adding some
 simple validators. And then we will show how to split the validation and view
@@ -94,7 +94,7 @@ First we have some pragmas:
 > {-# OPTIONS_GHC -F -pgmFtrhsx #-}
 > module Main where
 
-And then some imports. We import modules from three different `Formettes` packages: the core `formettes` library, the `formettes-happstack` package, and the `formettes-hsp` package:
+And then some imports. We import modules from three different `Reform` packages: the core `reform` library, the `reform-happstack` package, and the `reform-hsp` package:
 
 > import Control.Applicative
 > import Control.Applicative.Indexed (IndexedFunctor(..), IndexedApplicative(..))
@@ -103,10 +103,10 @@ And then some imports. We import modules from three different `Formettes` packag
 > import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
 > import HSP
-> import Text.Formettes ( CommonFormError(..), Form, FormError(..), Proof(..), (++>)
->                        , (<++), decimal, prove, transformEither, transform, viewForm)
-> import Text.Formettes.Happstack
-> import Text.Formettes.HSP.String
+> import Text.Reform ( CommonFormError(..), Form, FormError(..), Proof(..), (++>)
+>                    , (<++), decimal, prove, transformEither, transform, viewForm)
+> import Text.Reform.Happstack
+> import Text.Reform.HSP.String
 
 Next we will create a type alias for our application's server monad:
 
@@ -172,7 +172,7 @@ The error type also needs a `FormError` instance:
 >     type ErrorInputType AppError = [Input]
 >     commonFormError = Common
 
-Internally, `formettes` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
+Internally, `reform` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
 
 Now we have the groundwork laid to create a simple form. Let's create
 a form that allows users to post a message. First we will want a type to
@@ -218,7 +218,7 @@ The `br` functions creates a `Form` element that doesn't do anything except inse
 
 The `<$>`, `<*>` and `<*` operators come from `Control.Applicative`. If you are not familiar with applicative functors then you will want to read a [tutorial such as this one](http://en.wikibooks.org/wiki/Haskell/Applicative_Functors).
 
-`++>` comes from the `formettes` library and has the type:
+`++>` comes from the `reform` library and has the type:
 
 ] (++>) :: (Monad m, Monoid view) =>
 ]          Form m input error view () ()
@@ -261,7 +261,7 @@ The easiest way to handle a `POST` request is to use the `eitherForm` function.
 
 If the form validates successfully then `eitherForm` will return `Right a`. If the form fails to validate, then it returns `Left view`. The `view` will contain the form already prepopulated with the data the user submitted plus the validation error messages.
 
-The `Environment m input` argument tells the `formette` code how to retrieve and decode the form data set -- it is specific to each web framework. `happstack-formettes` exports:
+The `Environment m input` argument tells the `reform` code how to retrieve and decode the form data set -- it is specific to each web framework. `happstack-reform` exports:
 
 ] environment :: (Happstack m) => Environment m [Input]
 
@@ -297,47 +297,47 @@ Using these functions we can not create a simple app which uses our form. First 
 
 Note that `viewForm` and `eitherForm` do not generate the `<form>` tag -- only its children.
 
-`formette` function
+`reform` function
 -------------------
 
-You may have noticed that `postPage` seems to contain a fair amount of boilerplate and ways to screw things up. `happstack-formettes` exports a `formette` function which reduces the amount of boilerplate required:
+You may have noticed that `postPage` seems to contain a fair amount of boilerplate and ways to screw things up. `happstack-reform` exports a `reform` function which reduces the amount of boilerplate required:
 
 > postPage2 :: AppT IO Response
 > postPage2 =
 >     dir "post2" $
 >         appTemplate "post 2" () $
->            <% formette (form "/post2") "post2" displayMessage Nothing postForm %>
+>            <% reform (form "/post2") "post2" displayMessage Nothing postForm %>
 >     where
 >       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
 
-`formette` has a pretty intense looking type signature but it is actually pretty straight-forward:
+`reform` has a pretty intense looking type signature but it is actually pretty straight-forward:
 
 ] -- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
-] formette :: (ToMessage b, Happstack m, Alternative m) =>
+] reform :: (ToMessage b, Happstack m, Alternative m) =>
 ]             (view -> view)                          -- ^ wrap raw form html inside a <form> tag
 ]          -> String                                  -- ^ prefix
 ]          -> (a -> m b)                              -- ^ handler used when form validates
 ]          -> Maybe ([(FormRange, e)] -> view -> m b) -- ^ handler used when form does not validate
 ]          -> Form m [Input] e view proof a           -- ^ the formlet
 ]          -> m view
-] formette toForm prefix handleSuccess mHandleFailure form = ...
+] reform toForm prefix handleSuccess mHandleFailure form = ...
 
 <dl>
- <dt>toForm</dt><dd>should wrap the view returned by the form in a <code>&lt;form&gt;</code> tag. Here we use the <code>form</code> function from <code>formettes-happstack</code>. The first argument to <code>form</code> is the <code>action</code> url.</dd>
+ <dt>toForm</dt><dd>should wrap the view returned by the form in a <code>&lt;form&gt;</code> tag. Here we use the <code>form</code> function from <code>reform-happstack</code>. The first argument to <code>form</code> is the <code>action</code> url.</dd>
  <dt>prefix</dt><dd>the <code>FormId</code> prefix to use when rendering this form.</dd>
  <dt>handleSuccess</dt><dd>is the function to call if the form validates successfully. It gets the value extracted from the form.</dd>
  <dt>hHandleFailure</dt><dd>is a function to call if for validation fails. If you pass in <code>Nothing</code> then the form will simple by redisplayed in the original context.</dd>
  <dt>form</dt><dd>is the <code>Form</code> to process.</dd>
 </dl>
 
-The `formette` function also has a hidden benefit -- it provides cross-site request forgery (CSRF) protection, using the double-submit method. When the `(form>` is generated, the `formette` function will create a secret token and add it to a hidden field in the form. It will also put the secret token in a cookie. When the user submits the form, the `formette` function will check that the value in the cookie and the hidden field match. This prevents rogue sites from tricking users into submitting forms, because the rogue site can not get access to the secret token in the user's cookie.
+The `reform` function also has a hidden benefit -- it provides cross-site request forgery (CSRF) protection, using the double-submit method. When the `(form>` is generated, the `reform` function will create a secret token and add it to a hidden field in the form. It will also put the secret token in a cookie. When the user submits the form, the `reform` function will check that the value in the cookie and the hidden field match. This prevents rogue sites from tricking users into submitting forms, because the rogue site can not get access to the secret token in the user's cookie.
 
 benefits so far
 ---------------
 
 The form we have so far is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
 
-However, we do still see benefits from `formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used. Additionally, we get automatic CSRF protection when using `formette`.
+However, we do still see benefits from `reform`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used. Additionally, we get automatic CSRF protection when using `reform`.
 
 Form with simple validation
 ---------------------------
@@ -374,11 +374,11 @@ element. This gives greater control over where error messages appear
 in the form. The list of errors is literally a list of errors inside
 an:
 
-    <ul class="formettes-error-list">
+    <ul class="reform-error-list">
 
 You can use CSS to control the theming.
 
-For even greater control we could use the `Text.Formettes.Generalized.errors` function:
+For even greater control we could use the `Text.Reform.Generalized.errors` function:
 
 ] errors :: Monad m =>
 ]           ([error] -> view) -- ^ function to convert the error messages into a view
@@ -392,7 +392,7 @@ We can wrap up the `validForm` the same way we did `postForm`:
 > validPage =
 >     dir "valid" $
 >         appTemplate "valid post" () $
->            <% formette (form "/valid") "valid" displayMessage Nothing validPostForm %>
+>            <% reform (form "/valid") "valid" displayMessage Nothing validPostForm %>
 >     where
 >       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
 
@@ -401,9 +401,9 @@ A few names have been changed, but everything else is exactly the same.
 Separating Validation and Views
 ===============================
 
-One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using `formettes` as well -- in a manner that is both more flexible and which provides greater type safety. The key is the `proof` parameter -- which we have so far set to `()` and otherwise ignored.
+One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using `reform` as well -- in a manner that is both more flexible and which provides greater type safety. The key is the `proof` parameter -- which we have so far set to `()` and otherwise ignored.
 
-In `formettes` we divide the work into two pieces:
+In `reform` we divide the work into two pieces:
 
  1. `Proofs`
  2. a `Form` that returns a `Proved` value
@@ -520,11 +520,11 @@ In order to make an `Applicative` instance of `Form`, all the proof type variabl
 
 ] instance (Functor m, Monad m, Monoid view, Monoid proof) => (Form m input error view proof) where ...
 
-for `SimpleForm` we used this instance, which is defined for us already in `formettes`:
+for `SimpleForm` we used this instance, which is defined for us already in `reform`:
 
 ] instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error view ()) where
 
-With this instance, `formettes` feels and works almost exactly like `digestive-functors <= 0.2`.
+With this instance, `reform` feels and works almost exactly like `digestive-functors <= 0.2`.
 
 But, for the `provePostForm`, that instance won't work for us. `mkMessage` has the type:
 
@@ -536,7 +536,7 @@ and we want to apply it to `ProofForms` created by:
 
 Here the proof types don't match up. Instead we need a `Applicative Functor` that allows us to transform the return value *and* the proof value. We need, what I believe is called, a `Type-Indexed Applicative Functor` or a `Parameterized Applicative Functor`. Most literature on this subject is actually dealing with type-indexed or parameterized `Monads`, but the idea is the same.
 
-The `formettes` library defines two new classes, `IndexedFunctor` and `IndexedApplicative`:
+The `reform` library defines two new classes, `IndexedFunctor` and `IndexedApplicative`:
 
 ] class IndexedFunctor f where
 ]     -- | imap is similar to fmap
@@ -583,7 +583,7 @@ We can use this `Proof` with our `SimpleForm` by using the `transform` function:
 Conclusion
 ----------
 
-And, that is the essence of `formettes`. The Haddock documentation should cover the remainder -- such as other types of input controls (radio buttons, checkboxes, etc).
+And, that is the essence of `reform`. The Haddock documentation should cover the remainder -- such as other types of input controls (radio buttons, checkboxes, etc).
 
 main
 ----
@@ -605,11 +605,3 @@ Here is a main function that ties all the examples together:
 >                        <li><a href="/valid">Valid Form</a></li>
 >                       </ul>
 >                 ]
-
-
-names
------
-
- - formlets
- - formettes
- - formlings

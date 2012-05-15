@@ -12,9 +12,9 @@ import Text.Blaze ((!), Html)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Renderer.Utf8 (renderHtml)
-import Text.Formettes
-import Text.Formettes.Heist
-import Text.Formettes.Happstack
+import Text.Reform
+import Text.Reform.Heist
+import Text.Reform.Happstack
 import Text.Templating.Heist
 import qualified Text.XmlHtml as X
 import Text.Templating.Heist.TemplateDirectory (newTemplateDirectory')
@@ -43,7 +43,7 @@ formHandler ts form =
         msum [ do method GET
                   refMap <- viewForm "form" form
                   ok ()
-                  renderHS (bindSplices (formettesSplices refMap []) ts) "form"
+                  renderHS (bindSplices (reformSplices refMap []) ts) "form"
 
              , do method POST
                   (view', mr) <- runForm "form" environment form
@@ -54,7 +54,7 @@ formHandler ts form =
                            do let refMap   = unView view' errs
                                   textErrs = map (\(fr, e) -> (fr, Text.pack $ show e)) errs
                               ok ()
-                              renderHS (bindSplices (formettesSplices refMap textErrs) ts) "form"
+                              renderHS (bindSplices (reformSplices refMap textErrs) ts) "form"
              ]
 
 main :: IO ()

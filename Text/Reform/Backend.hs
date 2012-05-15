@@ -5,12 +5,12 @@ This module contains two classes. 'FormInput' is a class which is parameterized 
 The 'FormError' class is used to map error messages into an application specific error type.
 
 -}
-module Text.Formettes.Backend where
+module Text.Reform.Backend where
 
 import Data.Maybe            (listToMaybe)
 import           Data.Text   (Text)
 import qualified Data.Text   as T
-import Text.Formettes.Result (FormId)
+import Text.Reform.Result (FormId)
 
 -- | an error type used to represent errors that are common to all backends
 data CommonFormError input

@@ -2,7 +2,7 @@
 module SharedForm where
 
 import Control.Applicative.Indexed
-import Text.Formettes
+import Text.Reform
 
 data DemoFormError input
     = CommonError (CommonFormError input)

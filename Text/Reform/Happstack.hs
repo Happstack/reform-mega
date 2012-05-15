@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleInstances, TypeFamilies #-}
 {- |
-Support for using Formettes with the Haskell Web Framework Happstack. <http://happstack.com/>
+Support for using Reform with the Haskell Web Framework Happstack. <http://happstack.com/>
 -}
-module Text.Formettes.Happstack where
+module Text.Reform.Happstack where
 
 import Control.Applicative                 (Applicative((<*>)), Alternative, (<$>), (<|>), (*>), optional)
 import Control.Applicative.Indexed         (IndexedApplicative(..))
@@ -14,9 +14,9 @@ import Data.Either                         (lefts, rights)
 import Data.Maybe                          (mapMaybe)
 import Data.Monoid                         (Monoid)
 import System.Random                       (randomIO)
-import Text.Formettes.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
-import Text.Formettes.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
-import Text.Formettes.Result               (Result(..), FormRange)
+import Text.Reform.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
+import Text.Reform.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
+import Text.Reform.Result               (Result(..), FormRange)
 import Happstack.Server                    (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, expireCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie, getDataFn)
 
 -- FIXME: we should really look at Content Type and check for non-UTF-8 encodings
@@ -74,19 +74,19 @@ checkCSRF name =
 
 -- | This function allows you to embed a a single 'Form' into a HTML page.
 --
--- In general, you will want to use the 'formette' function instead,
+-- In general, you will want to use the 'reform' function instead,
 -- which allows more than one 'Form' to be used on the same page.
 --
--- see also: 'formette'
-formetteSingle :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
+-- see also: 'reform'
+reformSingle :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
                   ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a <form> tag
                -> String                                      -- ^ prefix
                -> (a -> m b)                                  -- ^ handler used when form validates
                -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ handler used when form does not validate
                -> Form m [Input] error view proof a           -- ^ the formlet
                -> m view
-formetteSingle toForm prefix handleSuccess mHandleFailure form =
-    let csrfName = "formettes-csrf-" ++ prefix in
+reformSingle toForm prefix handleSuccess mHandleFailure form =
+    let csrfName = "reform-csrf-" ++ prefix in
     msum [ do method [GET, HEAD]
               csrfToken <- addCSRFCookie csrfName
               toForm [(csrfName, csrfToken)] <$> viewForm prefix form
@@ -124,16 +124,16 @@ formetteSingle toForm prefix handleSuccess mHandleFailure form =
 -- handler is provided, then the page will simply be redisplayed. The
 -- form will be rendered with the errors and previous submit data shown.
 --
--- The first argument to 'formette' is a function which generates the
+-- The first argument to 'reform' is a function which generates the
 -- @\<form\>@ tag. It should generally come from the template library
--- you are using, such as the @form@ function from @formettes-hsp@.
+-- you are using, such as the @form@ function from @reform-hsp@.
 --
 -- The @[(String, String)]@ argument is a list of '(name, value)'
 -- pairs for extra hidden fields that should be added to the
 -- @\<form\>@ tag. These hidden fields are used to provide cross-site
 -- request forgery (CSRF) protection, and to support multiple forms on
 -- the same page.
-formette :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
+reform :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
             ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
          -> String                                      -- ^ prefix
          -> (a -> m b)                                  -- ^ success handler used when form validates
@@ -141,8 +141,8 @@ formette :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
          -> Form m [Input] error view proof a           -- ^ the formlet
          -> m view
 
-formette toForm prefix success failure form =
-    guard prefix (formetteSingle toForm' prefix success failure form)
+reform toForm prefix success failure form =
+    guard prefix (reformSingle toForm' prefix success failure form)
     where
       toForm' hidden view = toForm (("formname",prefix) : hidden) view
       guard :: (Happstack m) => String -> m a -> m a

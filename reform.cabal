@@ -1,4 +1,4 @@
-Name:                formettes
+Name:                reform
 Version:             0.1
 -- Synopsis:
 -- Description:
@@ -13,18 +13,18 @@ Cabal-version:       >=1.2
 
 Library
   Exposed-modules:     Control.Applicative.Indexed
-                       Text.Formettes
-                       Text.Formettes.Backend
-                       Text.Formettes.Blaze
-                       Text.Formettes.Core
-                       Text.Formettes.Generalized
-                       Text.Formettes.Happstack
-                       Text.Formettes.HSP.Common
-                       Text.Formettes.HSP.String
-                       Text.Formettes.HSP.Text
-                       Text.Formettes.Heist
-                       Text.Formettes.Proof
-                       Text.Formettes.Result
+                       Text.Reform
+                       Text.Reform.Backend
+                       Text.Reform.Blaze
+                       Text.Reform.Core
+                       Text.Reform.Generalized
+                       Text.Reform.Happstack
+                       Text.Reform.HSP.Common
+                       Text.Reform.HSP.String
+                       Text.Reform.HSP.Text
+                       Text.Reform.Heist
+                       Text.Reform.Proof
+                       Text.Reform.Result
   Build-depends:       base             >= 4 && <5,
                        blaze-html       == 0.4.*,
                        bytestring       == 0.9.*,

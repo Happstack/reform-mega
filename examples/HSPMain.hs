@@ -5,9 +5,9 @@ module Main where
 import Control.Monad
 import qualified Data.ByteString.Char8 as C
 import Text.Blaze ((!), Html)
-import Text.Formettes
-import Text.Formettes.HSP.String
-import Text.Formettes.Happstack
+import Text.Reform
+import Text.Reform.HSP.String
+import Text.Reform.Happstack
 import HSP.ServerPartT
 import Happstack.Server
 import Happstack.Server.HSP.HTML

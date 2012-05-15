@@ -1,6 +1,6 @@
 <html>
  <head>
-  <title>Formettes + Heist</title>
+  <title>Reform + Heist</title>
  </head>
  <body>
   <h1>A form</h1>

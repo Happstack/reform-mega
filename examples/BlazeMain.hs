@@ -8,9 +8,9 @@ import Text.Blaze ((!), Html)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Renderer.Utf8 (renderHtml)
-import Text.Formettes
-import Text.Formettes.Blaze
-import Text.Formettes.Happstack
+import Text.Reform
+import Text.Reform.Blaze
+import Text.Reform.Happstack
 import Happstack.Server
 import SharedForm
 

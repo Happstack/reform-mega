@@ -2,7 +2,7 @@
 {- |
 This module defines the 'Form' type, its instances, core manipulation functions, and a bunch of helper utilities.
 -}
-module Text.Formettes.Core where
+module Text.Reform.Core where
 
 import Control.Applicative         (Applicative(pure, (<*>)))
 import Control.Applicative.Indexed (IndexedApplicative(ipure, (<<*>>)), IndexedFunctor (imap))
@@ -11,7 +11,7 @@ import Control.Monad.Reader        (MonadReader(ask), ReaderT, runReaderT)
 import Control.Monad.State         (MonadState(get,put), StateT, evalStateT)
 import Control.Monad.Trans         (lift)
 import Data.Monoid                 (Monoid(mempty, mappend))
-import Text.Formettes.Result       (FormId(..), FormRange(..), Result(..), unitRange, zeroId)
+import Text.Reform.Result       (FormId(..), FormRange(..), Result(..), unitRange, zeroId)
 
 ------------------------------------------------------------------------------
 -- * Proved

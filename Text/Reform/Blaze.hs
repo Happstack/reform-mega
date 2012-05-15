@@ -1,11 +1,11 @@
 {-# LANGUAGE TypeFamilies, ViewPatterns #-}
-module Text.Formettes.Blaze where
+module Text.Reform.Blaze where
 
 import Data.Monoid (mempty)
-import Text.Formettes.Backend
-import Text.Formettes.Core
-import qualified Text.Formettes.Generalized as G
-import Text.Formettes.Result
+import Text.Reform.Backend
+import Text.Reform.Core
+import qualified Text.Reform.Generalized as G
+import Text.Reform.Result
 import Text.Blaze ((!), Html)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -39,10 +39,10 @@ childErrors toHtml = G.errors toHtml
 
 -- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
 --
--- The @<\ul\>@ will have the attribute @class=\"formettes-error-list\"@.
+-- The @<\ul\>@ will have the attribute @class=\"reform-error-list\"@.
 errorList :: (Monad m, H.ToHtml error) => Form m input error Html () ()
 errorList = G.errors mkErrors
     where
       mkErrors []   = mempty
-      mkErrors errs = H.ul ! A.class_ (H.toValue "formettes-error-list") $ mapM_ mkError errs
+      mkErrors errs = H.ul ! A.class_ (H.toValue "reform-error-list") $ mapM_ mkError errs
       mkError e     = H.li (H.toHtml e)

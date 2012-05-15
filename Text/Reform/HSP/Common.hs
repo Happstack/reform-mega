@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, TypeFamilies, UndecidableInstances, ViewPatterns #-}
 {-# OPTIONS_GHC -F -pgmFtrhsx #-}
-module Text.Formettes.HSP.Common where
+module Text.Reform.HSP.Common where
 
-import Text.Formettes.Backend
-import Text.Formettes.Core
-import Text.Formettes.Generalized as G
-import Text.Formettes.Result (FormId, Result(Ok), unitRange)
+import Text.Reform.Backend
+import Text.Reform.Core
+import Text.Reform.Generalized as G
+import Text.Reform.Result (FormId, Result(Ok), unitRange)
 import HSP
 
 instance (EmbedAsAttr m (Attr String String)) => (EmbedAsAttr m (Attr String FormId)) where
@@ -221,7 +221,7 @@ errorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
 errorList = G.errors mkErrors
     where
       mkErrors []   = []
-      mkErrors errs = [<ul class="formettes-error-list"><% mapM mkError errs %></ul>]
+      mkErrors errs = [<ul class="reform-error-list"><% mapM mkError errs %></ul>]
       mkError e     = <li><% e %></li>
 
 br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
@@ -230,22 +230,22 @@ br = view [<br />]
 fieldset :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
             Form m input error c proof a
          -> Form m input error [XMLGenT x (XMLType x)] proof a
-fieldset frm = mapView (\xml -> [<fieldset class="formettes"><% xml %></fieldset>]) frm
+fieldset frm = mapView (\xml -> [<fieldset class="reform"><% xml %></fieldset>]) frm
 
 ol :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
-ol frm = mapView (\xml -> [<ol class="formettes"><% xml %></ol>]) frm
+ol frm = mapView (\xml -> [<ol class="reform"><% xml %></ol>]) frm
 
 ul :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
-ul frm = mapView (\xml -> [<ul class="formettes"><% xml %></ul>]) frm
+ul frm = mapView (\xml -> [<ul class="reform"><% xml %></ul>]) frm
 
 li :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
-li frm = mapView (\xml -> [<li class="formettes"><% xml %></li>]) frm
+li frm = mapView (\xml -> [<li class="reform"><% xml %></li>]) frm
 
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>

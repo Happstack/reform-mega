@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, TypeFamilies #-}
-module Text.Formettes.Heist where
+module Text.Reform.Heist where
 
 import Data.Maybe (fromMaybe)
 import Data.Monoid
@@ -7,10 +7,10 @@ import qualified Data.Map as Map
 import           Data.Map (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Text.Formettes.Backend
-import Text.Formettes.Core
-import qualified Text.Formettes.Generalized as G
-import Text.Formettes.Result
+import Text.Reform.Backend
+import Text.Reform.Core
+import qualified Text.Reform.Generalized as G
+import Text.Reform.Result
 import Text.Templating.Heist
 import qualified Text.XmlHtml as X
 
@@ -20,8 +20,8 @@ newtype RefMap = RefMap
     } deriving (Monoid)
 
 
-formettesSplices :: Monad m => RefMap -> [(FormRange, Text)] -> [(Text, Splice m)]
-formettesSplices refMap errors =
+reformSplices :: Monad m => RefMap -> [(FormRange, Text)] -> [(Text, Splice m)]
+reformSplices refMap errors =
     [ ("fmInputString",      fmInputString refMap)
     , ("fmErrorList",        fmErrorList refMap errors)
     ]

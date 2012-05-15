@@ -2,16 +2,16 @@
 {- |
 This module provides helper functions for HTML input elements. These helper functions are not specific to any particular web framework or html library.
 -}
-module Text.Formettes.Generalized where
+module Text.Reform.Generalized where
 
 import Control.Applicative    ((<$>))
 import qualified Data.IntSet  as IS
 import Data.List              (find)
 import Data.Maybe             (mapMaybe)
 import Numeric                (readDec)
-import Text.Formettes.Backend
-import Text.Formettes.Core
-import Text.Formettes.Result
+import Text.Reform.Backend
+import Text.Reform.Core
+import Text.Reform.Result
 
 -- | used for constructing elements like @\<input type=\"text\"\>@, which return a single input value.
 input :: (Monad m, FormError error) =>
