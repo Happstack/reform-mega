@@ -197,9 +197,9 @@ Now we can create a very basic form:
 > postForm :: SimpleForm Message
 > postForm =
 >     Message
->      <$> label "name:"            ++> inputText ""       <++ br
->      <*> label "title: "          ++> inputText ""       <++ br
->      <*> (label "message:" <* br) ++> textarea 80 40 ""  <++ br
+>      <$> label "name:"             ++> inputText ""       <++ br
+>      <*> label "title: "           ++> inputText ""       <++ br
+>      <*> (label "message:" <++ br) ++> textarea 80 40 ""  <++ br
 >      <*  inputSubmit "post"
 
 This form contains all the information needed to generate the form elements and to parse the submitted form data set and extract a `Message` value.
@@ -321,19 +321,21 @@ You may have noticed that `postPage` seems to contain a fair amount of boilerpla
 ] formette toForm prefix handleSuccess mHandleFailure form = ...
 
 <dl>
- <dt>toForm</dt><dd>should wrap the view returned by the form in a `<form>` tag. Here we use the `form` function from `happstack-hsp`. The first argument to `form` is the `action` url.</dd>
- <dt>prefix</dt><dd>the `FormId` prefix to use when rendering this form.</dd>
+ <dt>toForm</dt><dd>should wrap the view returned by the form in a <code>&lt;form&gt;</code> tag. Here we use the <code>form</code> function from <code>formettes-happstack</code>. The first argument to <code>form</code> is the <code>action</code> url.</dd>
+ <dt>prefix</dt><dd>the <code>FormId</code> prefix to use when rendering this form.</dd>
  <dt>handleSuccess</dt><dd>is the function to call if the form validates successfully. It gets the value extracted from the form.</dd>
- <dt>hHandleFailure</dt><dd>is a function to call if for validation fails. If you pass in `Nothing` then the form will simple by redisplayed in the original context.</dd>
- <dt>form</dt>is the `Form` to process.
+ <dt>hHandleFailure</dt><dd>is a function to call if for validation fails. If you pass in <code>Nothing</code> then the form will simple by redisplayed in the original context.</dd>
+ <dt>form</dt><dd>is the <code>Form</code> to process.</dd>
 </dl>
+
+The `formette` function also has a hidden benefit -- it provides cross-site request forgery (CSRF) protection, using the double-submit method. When the `(form>` is generated, the `formette` function will create a secret token and add it to a hidden field in the form. It will also put the secret token in a cookie. When the user submits the form, the `formette` function will check that the value in the cookie and the hidden field match. This prevents rogue sites from tricking users into submitting forms, because the rogue site can not get access to the secret token in the user's cookie.
 
 benefits so far
 ---------------
 
 The form we have so far is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
 
-However, we do still see benefits from `formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used.
+However, we do still see benefits from `formettes`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used. Additionally, we get automatic CSRF protection when using `formette`.
 
 Form with simple validation
 ---------------------------
@@ -601,3 +603,11 @@ Here is a main function that ties all the examples together:
 >                        <li><a href="/valid">Valid Form</a></li>
 >                       </ul>
 >                 ]
+
+
+names
+-----
+
+ - formlets
+ - formettes
+ - formlings
