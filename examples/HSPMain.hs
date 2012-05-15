@@ -24,19 +24,19 @@ usernameForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, Fo
                 String
              -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] NotNull Username
 usernameForm initialValue =
-    errorList ++> (label "username: " ++> (Username <+$+> inputText initialValue `prove` (notNullProof InvalidUsername)))
+    errorList ++> (label "username: " ++> (Username <<$>> inputText initialValue `prove` (notNullProof InvalidUsername)))
 
 emailForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
              String
           -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] ValidEmail Email
 emailForm initialValue    =
-    errorList ++> (label "email: " ++> (Email    <+$+> inputText initialValue `prove` (validEmailProof InvalidEmail)))
+    errorList ++> (label "email: " ++> (Email    <<$>> inputText initialValue `prove` (validEmailProof InvalidEmail)))
 
 userForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
             String -- ^ initial username
          -> String -- ^ initial email
          -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] ValidUser User
-userForm nm eml = mkUser <+*+> (usernameForm nm) <+*+> (emailForm eml)
+userForm nm eml = mkUser <<*>> (usernameForm nm) <<*>> (emailForm eml)
 
 hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =

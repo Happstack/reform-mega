@@ -30,13 +30,13 @@ emailForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
                   String
                -> Form m input (DemoFormError input) Html ValidEmail Email
 emailForm initialValue    =
-    errorList ++> (label "email: " ++> (Email    <+$+> inputText initialValue `prove` (validEmailProof InvalidEmail)))
+    errorList ++> (label "email: " ++> (Email    <<$>> inputText initialValue `prove` (validEmailProof InvalidEmail)))
 
 userForm :: (Monad m, FormInput input, H.ToHtml (DemoFormError input)) =>
             String -- ^ initial username
          -> String -- ^ initial email
          -> Form m input (DemoFormError input) Html ValidUser User
-userForm nm eml = mkUser <+*+> (usernameForm nm) <+*+> (emailForm eml)
+userForm nm eml = mkUser <<*>> (usernameForm nm) <<*>> (emailForm eml)
 
 blazeResponse :: Html -> Response
 blazeResponse html = toResponseBS (C.pack "text/html;charset=UTF-8") $ renderHtml html

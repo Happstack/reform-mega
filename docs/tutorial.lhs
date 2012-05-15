@@ -102,7 +102,7 @@ And then some imports. We import modules from three different `Formettes` packag
 > import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
 > import HSP
-> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<++), (<+*+>), decimal, prove, transformEither, transform, viewForm)
+> import Text.Formettes (IndexedFunctor(..), IndexedApplicative(..), CommonFormError(..), Form, FormError(..), Proof(..), (++>), (<++), (<<*>>), decimal, prove, transformEither, transform, viewForm)
 > import Text.Formettes.Happstack
 > import Text.Formettes.HSP.String
 
@@ -479,7 +479,7 @@ You will notice that what we have constructed so far has imposes no restrictions
 To construct a the `Form`, we use a pattern very similar to what we did when using `SimpleForm`. They only real differences are:
 
  1. we use `prove` instead of `transformEither`
- 2. we use `<+*+>` instead of `<*>`
+ 2. we use `<<*>>` instead of `<*>`
 
 To apply a `Proof` we use the `prove` function:
 
@@ -500,12 +500,12 @@ to create the ValidMessage form we can then combine the pieces like:
 
 > provenPostForm :: ProofForm ValidMessage Message
 > provenPostForm =
->     mkMessage <+*+> errorList ++> label "name: "    ++> inputText' ""
->               <+*+> errorList ++> label "title: "   ++> inputText' ""
->               <+*+> errorList ++> label "message: " ++> textarea' 80 40 ""
+>     mkMessage <<*>> errorList ++> label "name: "    ++> inputText' ""
+>               <<*>> errorList ++> label "title: "   ++> inputText' ""
+>               <<*>> errorList ++> label "message: " ++> textarea' 80 40 ""
 
 This code looks quite similar to our `validPostForm` code. The primary
-difference is that we use `<+*+>` instead of `<*>`. That brings is to the topic of indexed applicative functors.
+difference is that we use `<<*>>` instead of `<*>`. That brings is to the topic of indexed applicative functors.
 
 Type Indexed / Parameterized Applicative Functors
 -------------------------------------------------
@@ -547,7 +547,7 @@ The `formettes` library defines two new classes, `IndexedFunctor` and `IndexedAp
 ]     -- | similar to 'pure'
 ]     ipure   :: x -> a -> f x a
 ]     -- | similar to '<*>'
-]    (<+*+>) :: f (x -> y) (a -> b) -> f x a -> f y b
+]    (<<*>>) :: f (x -> y) (a -> b) -> f x a -> f y b
 
 These classes look just like their non-indexed counterparts, except that they transform an extra parameter. Now we can create instances like:
 

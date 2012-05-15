@@ -5,6 +5,7 @@ Support for using Formettes with the Haskell Web Framework Happstack. <http://ha
 module Text.Formettes.Happstack where
 
 import Control.Applicative                 (Applicative((<*>)), Alternative, (<$>), (<|>), (*>), optional)
+import Control.Applicative.Indexed         (IndexedApplicative(..))
 import Control.Monad                       (msum, mplus)
 import Control.Monad.Trans                 (liftIO)
 import Data.ByteString.Lazy                (ByteString)
@@ -14,7 +15,7 @@ import Data.Maybe                          (mapMaybe)
 import Data.Monoid                         (Monoid)
 import System.Random                       (randomIO)
 import Text.Formettes.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
-import Text.Formettes.Core                 (IndexedApplicative(..), Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
+import Text.Formettes.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
 import Text.Formettes.Result               (Result(..), FormRange)
 import Happstack.Server                    (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, expireCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie, getDataFn)
 
@@ -44,15 +45,24 @@ happstackForm :: (Happstack m) =>
 happstackForm = eitherForm environment
 
 
-addCSRFCookie :: (Happstack m) => String -> m String
+-- | Utility Function: add a cookie for CSRF protection
+addCSRFCookie :: (Happstack m) =>
+                 String    -- ^ name to use for the cookie
+              -> m String
 addCSRFCookie name =
     do i <- liftIO $ randomIO
        addCookie Session ((mkCookie name (show i)) { httpOnly = True })
        return (show (i :: Integer))
 
+-- | Utility Function: get CSRF protection cookie
 getCSRFCookie :: (Happstack m) => String -> m String
 getCSRFCookie name = cookieValue <$> lookCookie name
 
+-- | Utility Function: check that the CSRF cookie and hidden field exist and are equal
+--
+-- If the check fails, this function will call:
+--
+-- > escape $ forbidden (toResponse "CSRF check failed.")
 checkCSRF :: (Happstack m) => String -> m ()
 checkCSRF name =
     do mc <- optional $ getCSRFCookie name
@@ -62,7 +72,12 @@ checkCSRF name =
              | c == c' -> return ()
          _ -> escape $ forbidden (toResponse "CSRF check failed.")
 
--- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
+-- | This function allows you to embed a a single 'Form' into a HTML page.
+--
+-- In general, you will want to use the 'formette' function instead,
+-- which allows more than one 'Form' to be used on the same page.
+--
+-- see also: 'formette'
 formetteSingle :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
                   ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a <form> tag
                -> String                                      -- ^ prefix
@@ -94,11 +109,35 @@ formetteSingle toForm prefix handleSuccess mHandleFailure form =
                              return $ toForm [(csrfName, csrfToken)] (unView v errors)
          ]
 
+-- | this function embeds a 'Form' in an HTML page.
+--
+-- When the page is requested with a 'GET' request, the form view will
+-- be rendered.
+--
+-- When the page is requested with a 'POST' request, the form data
+-- will be extracted and validated.
+--
+-- If a value is successfully produced the success handler will be
+-- called with the value.
+--
+-- On failure the failure handler will be called. If no failure
+-- handler is provided, then the page will simply be redisplayed. The
+-- form will be rendered with the errors and previous submit data shown.
+--
+-- The first argument to 'formette' is a function which generates the
+-- @\<form\>@ tag. It should generally come from the template library
+-- you are using, such as the @form@ function from @formettes-hsp@.
+--
+-- The @[(String, String)]@ argument is a list of '(name, value)'
+-- pairs for extra hidden fields that should be added to the
+-- @\<form\>@ tag. These hidden fields are used to provide cross-site
+-- request forgery (CSRF) protection, and to support multiple forms on
+-- the same page.
 formette :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
-            ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a <form> tag
+            ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
          -> String                                      -- ^ prefix
-         -> (a -> m b)                                  -- ^ handler used when form validates
-         -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ handler used when form does not validate
+         -> (a -> m b)                                  -- ^ success handler used when form validates
+         -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ failure handler used when form does not validate
          -> Form m [Input] error view proof a           -- ^ the formlet
          -> m view
 
@@ -114,3 +153,4 @@ formette toForm prefix success failure form =
                then part
                else localRq (\req -> req { rqMethod = GET }) part
           ) `mplus` part
+

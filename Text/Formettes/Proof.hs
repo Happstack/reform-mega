@@ -9,10 +9,11 @@ A 'Proof' does three things:
 -}
 module Text.Formettes.Proof where
 
+import Control.Applicative.Indexed (IndexedFunctor(imap))
 import Control.Monad.Trans   (lift)
 import Numeric               (readDec, readFloat, readSigned)
 import Text.Formettes.Result (FormRange, Result(..))
-import Text.Formettes.Core   (IndexedFunctor(imap), Form(..), Proved(..))
+import Text.Formettes.Core   (Form(..), Proved(..))
 
 -- | A 'Proof' attempts to prove something about a value.
 --

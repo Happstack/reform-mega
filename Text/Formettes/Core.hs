@@ -4,46 +4,14 @@ This module defines the 'Form' type, its instances, core manipulation functions,
 -}
 module Text.Formettes.Core where
 
-import Control.Applicative    (Applicative(pure, (<*>)))
-import Control.Arrow          (first, second)
-import Control.Monad.Reader   (MonadReader(ask), ReaderT, runReaderT)
-import Control.Monad.State    (MonadState(get,put), StateT, evalStateT)
-import Control.Monad.Trans    (lift)
-import Data.Monoid            (Monoid(mempty, mappend))
-import Text.Formettes.Result  (FormId(..), FormRange(..), Result(..), unitRange, zeroId)
-
-------------------------------------------------------------------------------
--- * type-indexed / parameterized classes
-------------------------------------------------------------------------------
-
--- | a class for a 'type-indexed' or 'paramaterized' functor
---
--- note: not sure what the most correct name is for this class, or if
--- it exists in a well supported library already.
-class IndexedFunctor f where
-    -- | imap is similar to fmap
-    imap :: (x -> y) -- ^ function to apply to first parameter
-         -> (a -> b) -- ^ function to apply to second parameter
-         -> f x a    -- ^ indexed functor
-         -> f y b
-
--- | a class for a 'type-indexed' or 'paramaterized' applicative functors
---
--- note: not sure what the most correct name is for this class, or if
--- it exists in a well supported library already.
-class (IndexedFunctor f) => IndexedApplicative f where
-    -- | similar to 'pure'
-    ipure   :: x -> a -> f x a
-    -- | similar to '<*>'
-    (<+*+>) :: f (x -> y) (a -> b) -> f x a -> f y b
-
-infixl 4 <+*+>
-
--- | similar to '<$>'. An alias for 'imap id'
-(<+$+>) :: IndexedFunctor f => (a -> b) -> f y a -> f y b
-(<+$+>) = imap id
-
-infixl 4 <+$+>
+import Control.Applicative         (Applicative(pure, (<*>)))
+import Control.Applicative.Indexed (IndexedApplicative(ipure, (<<*>>)), IndexedFunctor (imap))
+import Control.Arrow               (first, second)
+import Control.Monad.Reader        (MonadReader(ask), ReaderT, runReaderT)
+import Control.Monad.State         (MonadState(get,put), StateT, evalStateT)
+import Control.Monad.Trans         (lift)
+import Data.Monoid                 (Monoid(mempty, mappend))
+import Text.Formettes.Result       (FormId(..), FormRange(..), Result(..), unitRange, zeroId)
 
 ------------------------------------------------------------------------------
 -- * Proved
@@ -197,7 +165,7 @@ instance (Monoid view, Monad m) => IndexedApplicative (Form m input error view) 
     ipure p a = Form $ do i <- getFormId
                           return (mempty, return $ Ok (Proved p (unitRange i) a))
 
-    (Form frmF) <+*+> (Form frmA) =
+    (Form frmF) <<*>> (Form frmA) =
         Form $ do (xml1, mfok) <- frmF
                   incFormId
                   (xml2, maok) <- frmA
@@ -226,7 +194,7 @@ instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error vi
                                                                , pos       = FormRange i i
                                                                , unProved  = a
                                                                })
-    -- this coud be defined in terms of <+*+> if we just changed the proof of frmF to (() -> ())
+    -- this coud be defined in terms of <<*>> if we just changed the proof of frmF to (() -> ())
     (Form frmF) <*> (Form frmA) =
        Form $
          do (xml1, mfok) <- frmF
