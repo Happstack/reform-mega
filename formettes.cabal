@@ -21,6 +21,7 @@ Library
                        Text.Formettes.Happstack
                        Text.Formettes.HSP.Common
                        Text.Formettes.HSP.String
+                       Text.Formettes.HSP.Text
                        Text.Formettes.Heist
                        Text.Formettes.Proof
                        Text.Formettes.Result
