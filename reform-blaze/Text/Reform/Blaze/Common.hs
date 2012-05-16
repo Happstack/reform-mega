@@ -267,6 +267,22 @@ errorList = G.errors mkErrors
              mconcat $ map mkError errs
       mkError e     = H.li $ H.toHtml e
 
+-- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
+--
+-- Includes errors from child forms.
+--
+-- The @<\ul\>@ will have the attribute @class=\"reform-error-list\"@.
+childErrorList :: (Monad m, H.ToMarkup error) =>
+             Form m input error Html () ()
+childErrorList = G.childErrors mkErrors
+    where
+      mkErrors []   = mempty
+      mkErrors errs =
+          H.ul ! A.class_ "reform-error-list" $
+             mconcat $ map mkError errs
+      mkError e     = H.li $ H.toHtml e
+
+
 -- | create a @\<br\>@ tag.
 br :: (Monad m) => Form m input error Html () ()
 br = view H.br

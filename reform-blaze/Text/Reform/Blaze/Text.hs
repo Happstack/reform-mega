@@ -30,6 +30,7 @@ module Text.Reform.Blaze.Text
     , C.label
       -- * errors
     , C.errorList
+    , C.childErrorList
       -- * layout functions
     , C.br
     , C.fieldset
