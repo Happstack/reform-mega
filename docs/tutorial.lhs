@@ -104,7 +104,7 @@ And then some imports. We import modules from three different `Reform` packages:
 > import HSP.ServerPartT
 > import HSP
 > import Text.Reform ( CommonFormError(..), Form, FormError(..), Proof(..), (++>)
->                    , (<++), decimal, prove, transformEither, transform, viewForm)
+>                    , (<++), decimal, prove, transformEither, transform)
 > import Text.Reform.Happstack
 > import Text.Reform.HSP.String
 
@@ -279,18 +279,15 @@ Using these functions we can not create a simple app which uses our form. First 
 > postPage =
 >     dir "post" $
 >         msum [ do method GET
->                   appTemplate "post" ()
->                     <form action="/post" method="POST" enctype="multipart/form-data">
->                       <%  viewForm "post" postForm %>
->                     </form>
+>                   html <- csrfViewForm (form "/post") "post" postForm
+>                   appTemplate "post" () html
+
 >              , do method POST
->                   result <- happstackForm "post" postForm
+>                   result <- csrfEitherForm (form "/post") "post" postForm
 >                   case result of
->                     (Left view) ->
->                            appTemplate "post" ()
->                              <form action="/post" method="POST" enctype="multipart/form-data">
->                               <% viewForm "post" postForm %>
->                              </form>
+>                     (Left errorView) ->
+>                         do appTemplate "post" () errorView
+>
 >                     (Right msg) ->
 >                            appTemplate "Your Message" () $ renderMessage msg
 >              ]

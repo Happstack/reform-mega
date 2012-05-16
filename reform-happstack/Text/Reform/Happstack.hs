@@ -37,22 +37,76 @@ environment =
            case ins of
              []  -> return $ Missing
              _   -> return $ Found ins
--- | an alias for, 'eitherForm environment'
-happstackForm :: (Happstack m) =>
-                 String                            -- ^ form prefix
-              -> Form m [Input] error view proof a -- ^ Form to run
-              -> m (Either view a)                 -- ^ Result
-happstackForm = eitherForm environment
+-- | alias for 'eitherForm environment'
+happstackEitherForm :: (Happstack m) =>
+                       String                            -- ^ form prefix
+                    -> Form m [Input] error view proof a -- ^ Form to run
+                    -> m (Either view a)                 -- ^ Result
+happstackEitherForm = eitherForm environment
 
+-- | similar to 'eitherForm environment' but includes double-submit
+-- (Cross Site Request Forgery) CSRF protection.
+--
+-- The form must have been created using 'csrfViewForm'
+--
+-- see also: 'csrfViewForm'
+csrfEitherForm :: (Happstack m) =>
+                  ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
+               -> String                               -- ^ form prefix
+               -> Form m [Input] error view proof a    -- ^ Form to run
+               -> m (Either view a)                    -- ^ Result
+csrfEitherForm toForm prefix frm =
+    do checkCSRF csrfName
+       -- expireCookie csrfName
+       r <- eitherForm environment prefix frm
+       case r of
+         (Left view) -> Left <$> csrfView toForm prefix view
+         (Right a)   -> return (Right a)
+
+-- | similar to 'viewForm' but includes double-submit
+-- (Cross Site Request Forgery) CSRF protection.
+--
+-- Must be used with 'csrfEitherForm'.
+--
+-- see also: 'csrfEitherForm'.
+csrfViewForm :: (Happstack m) =>
+                ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
+             -> String
+             -> Form m input error view proof a
+             -> m view
+csrfViewForm toForm prefix frm =
+    do formChildren <- viewForm prefix frm
+       csrfView toForm prefix formChildren
+
+-- | Utility Function: wrap the @view@ in a @\<form\>@ that includes
+-- double-submit CSRF protection.
+--
+-- calls 'addCSRFCookie' to set the cookie and adds the token as a
+-- hidden field.
+--
+-- see also: 'csrfViewForm', 'csrfEitherForm', 'checkCSRF'
+csrfView :: (Happstack m) =>
+            ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
+         -> String
+         -> view
+         -> m view
+csrfView toForm prefix view =
+    do csrfToken <- addCSRFCookie csrfName
+       return (toForm [(csrfName, csrfToken)] view)
 
 -- | Utility Function: add a cookie for CSRF protection
 addCSRFCookie :: (Happstack m) =>
                  String    -- ^ name to use for the cookie
               -> m String
 addCSRFCookie name =
-    do i <- liftIO $ randomIO
-       addCookie Session ((mkCookie name (show i)) { httpOnly = True })
-       return (show (i :: Integer))
+    do mc <- optional $ lookCookie name
+       case mc of
+         Nothing ->
+             do i <- liftIO $ randomIO
+                addCookie Session ((mkCookie name (show i)) { httpOnly = True })
+                return (show (i :: Integer))
+         (Just c) ->
+             return (cookieValue c)
 
 -- | Utility Function: get CSRF protection cookie
 getCSRFCookie :: (Happstack m) => String -> m String
@@ -72,6 +126,12 @@ checkCSRF name =
              | c == c' -> return ()
          _ -> escape $ forbidden (toResponse "CSRF check failed.")
 
+-- | generate the name to use for the csrf cookie
+--
+-- Currently this returns the static cookie "reform-csrf". Using the prefix would allow 
+csrfName :: String
+csrfName = "reform-csrf"
+
 -- | This function allows you to embed a a single 'Form' into a HTML page.
 --
 -- In general, you will want to use the 'reform' function instead,
@@ -86,7 +146,6 @@ reformSingle :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
                -> Form m [Input] error view proof a           -- ^ the formlet
                -> m view
 reformSingle toForm prefix handleSuccess mHandleFailure form =
-    let csrfName = "reform-csrf-" ++ prefix in
     msum [ do method [GET, HEAD]
               csrfToken <- addCSRFCookie csrfName
               toForm [(csrfName, csrfToken)] <$> viewForm prefix form
@@ -97,7 +156,7 @@ reformSingle toForm prefix handleSuccess mHandleFailure form =
               result <- mresult
               case result of
                 (Ok a)         ->
-                    (escape . fmap toResponse) $ do expireCookie csrfName
+                    (escape . fmap toResponse) $ do -- expireCookie csrfName
                                                     handleSuccess (unProved a)
                 (Error errors) ->
                     do csrfToken <- addCSRFCookie csrfName
