@@ -17,7 +17,7 @@ import System.Random                       (randomIO)
 import Text.Reform.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
 import Text.Reform.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
 import Text.Reform.Result               (Result(..), FormRange)
-import Happstack.Server                    (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, expireCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie, getDataFn)
+import Happstack.Server                 (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, askRq, expireCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie, getDataFn)
 
 -- FIXME: we should really look at Content Type and check for non-UTF-8 encodings
 instance FormInput [Input] where
@@ -37,46 +37,45 @@ environment =
            case ins of
              []  -> return $ Missing
              _   -> return $ Found ins
--- | alias for 'eitherForm environment'
-happstackEitherForm :: (Happstack m) =>
-                       String                            -- ^ form prefix
-                    -> Form m [Input] error view proof a -- ^ Form to run
-                    -> m (Either view a)                 -- ^ Result
-happstackEitherForm = eitherForm environment
 
 -- | similar to 'eitherForm environment' but includes double-submit
 -- (Cross Site Request Forgery) CSRF protection.
 --
--- The form must have been created using 'csrfViewForm'
+-- The form must have been created using 'happstackViewForm'
 --
--- see also: 'csrfViewForm'
-csrfEitherForm :: (Happstack m) =>
+-- see also: 'happstackViewForm'
+happstackEitherForm :: (Happstack m) =>
                   ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
                -> String                               -- ^ form prefix
                -> Form m [Input] error view proof a    -- ^ Form to run
                -> m (Either view a)                    -- ^ Result
-csrfEitherForm toForm prefix frm =
-    do checkCSRF csrfName
-       -- expireCookie csrfName
-       r <- eitherForm environment prefix frm
-       case r of
-         (Left view) -> Left <$> csrfView toForm prefix view
-         (Right a)   -> return (Right a)
+happstackEitherForm toForm prefix frm =
+    do mthd <- rqMethod <$> askRq
+       case mthd of
+         POST ->
+             do checkCSRF csrfName
+                -- expireCookie csrfName
+                r <- eitherForm environment prefix frm
+                case r of
+                  (Left view) -> Left <$> happstackView toForm prefix view
+                  (Right a)   -> return (Right a)
+         _  ->
+             do Left <$> happstackViewForm toForm prefix frm
 
 -- | similar to 'viewForm' but includes double-submit
 -- (Cross Site Request Forgery) CSRF protection.
 --
--- Must be used with 'csrfEitherForm'.
+-- Must be used with 'happstackEitherForm'.
 --
--- see also: 'csrfEitherForm'.
-csrfViewForm :: (Happstack m) =>
+-- see also: 'happstackEitherForm'.
+happstackViewForm :: (Happstack m) =>
                 ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
              -> String
              -> Form m input error view proof a
              -> m view
-csrfViewForm toForm prefix frm =
+happstackViewForm toForm prefix frm =
     do formChildren <- viewForm prefix frm
-       csrfView toForm prefix formChildren
+       happstackView toForm prefix formChildren
 
 -- | Utility Function: wrap the @view@ in a @\<form\>@ that includes
 -- double-submit CSRF protection.
@@ -84,13 +83,13 @@ csrfViewForm toForm prefix frm =
 -- calls 'addCSRFCookie' to set the cookie and adds the token as a
 -- hidden field.
 --
--- see also: 'csrfViewForm', 'csrfEitherForm', 'checkCSRF'
-csrfView :: (Happstack m) =>
+-- see also: 'happstackViewForm', 'happstackEitherForm', 'checkCSRF'
+happstackView :: (Happstack m) =>
             ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
          -> String
          -> view
          -> m view
-csrfView toForm prefix view =
+happstackView toForm prefix view =
     do csrfToken <- addCSRFCookie csrfName
        return (toForm [(csrfName, csrfToken)] view)
 
