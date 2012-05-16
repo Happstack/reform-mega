@@ -278,19 +278,10 @@ Using these functions we can not create a simple app which uses our form. First 
 > postPage :: AppT IO Response
 > postPage =
 >     dir "post" $
->         msum [ do method GET
->                   html <- csrfViewForm (form "/post") "post" postForm
->                   appTemplate "post" () html
-
->              , do method POST
->                   result <- csrfEitherForm (form "/post") "post" postForm
->                   case result of
->                     (Left errorView) ->
->                         do appTemplate "post" () errorView
->
->                     (Right msg) ->
->                            appTemplate "Your Message" () $ renderMessage msg
->              ]
+>         do result <- happstackEitherForm (form "/post") "post" postForm
+>            case result of
+>              (Left formHtml) -> appTemplate "post" () formHtml
+>              (Right msg)     -> appTemplate "Your Message" () $ renderMessage msg
 
 Note that `viewForm` and `eitherForm` do not generate the `<form>` tag -- only its children.
 
