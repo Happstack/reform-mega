@@ -224,6 +224,15 @@ errorList = G.errors mkErrors
       mkErrors errs = [<ul class="reform-error-list"><% mapM mkError errs %></ul>]
       mkError e     = <li><% e %></li>
 
+childErrorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
+             Form m input error [XMLGenT x (XMLType x)] () ()
+childErrorList = G.childErrors mkErrors
+    where
+      mkErrors []   = []
+      mkErrors errs = [<ul class="reform-error-list"><% mapM mkError errs %></ul>]
+      mkError e     = <li><% e %></li>
+
+
 br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
 br = view [<br />]
 
@@ -263,3 +272,8 @@ form action hidden children
       mkHidden (name, value) =
           <input type="hidden" name=name value=value />
 
+setAttrs :: (EmbedAsAttr x attr, XMLGenerator x, Monad m, Functor m) =>
+            Form m input error [GenXML x] proof a
+         -> attr
+         -> Form m input error [GenXML x] proof a
+setAttrs form attrs = mapView (map (`set` attrs)) form

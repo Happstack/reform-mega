@@ -30,6 +30,7 @@ module Text.Reform.HSP.String
     , label
       -- * errors
     , errorList
+    , childErrorList
       -- * layout functions
     , br
     , fieldset
@@ -37,6 +38,7 @@ module Text.Reform.HSP.String
     , ul
     , li
     , form
+    , setAttrs
     ) where
 
 import HSP
@@ -193,6 +195,15 @@ errorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
              Form m input error [XMLGenT x (XMLType x)] () ()
 errorList = C.errorList
 
+-- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
+--
+-- Includes errors from children of the current form.
+--
+-- The @<\ul\>@ will have the attribute @class=\"reform-error-list\"@.
+childErrorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
+             Form m input error [XMLGenT x (XMLType x)] () ()
+childErrorList = C.childErrorList
+
 -- | create a @\<br\>@ tag.
 br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
 br = C.br
@@ -229,3 +240,10 @@ form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
      -> [XMLGenT x (XMLType x)] -- ^ childern
      -> [XMLGenT x (XMLType x)]
 form = C.form
+
+-- | set the attributes on the top-level elements of 'Form'
+setAttrs :: (EmbedAsAttr x attr, XMLGenerator x, Monad m, Functor m) =>
+            Form m input error [XMLGenT x (XMLType x)] proof a
+         -> attr
+         -> Form m input error [GenXML x] proof a
+setAttrs = C.setAttrs
