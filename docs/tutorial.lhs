@@ -1,32 +1,34 @@
 Reform Tutorial
-==================
+===============
 
-`reform` is a library for create type-safe, composable, and validated
-HTML forms. It is built around applicative functors and is based on
-the same principles as `formlets` and `digestive-functors < 0.2`.
+`reform` is a library for creating type-safe, composable, and
+validated HTML forms. It is built around applicative functors and is
+based on the same principles as `formlets` and `digestive-functors <=
+0.2`.
 
 The core `reform` library is designed to be portable and can be used
 with a wide variety of Haskell web frameworks and template solutions
 -- though only a few options are supported at the moment.
 
 The most basic method of creating and processing forms with out the
-assistence of reform is to:
+assistance of `reform` is to:
 
  1. create a `<form>` tag with the desired elements by hand
 
- 2. write code which processed the form data set and tries to extract a value from it
+ 2. write code which processes the form data set and tries to extract a value from it
 
-The developer encounters a number of difficulties using this method:
+The developer will encounter a number of difficulties using this method:
 
  1. the developer must be careful to use the same `name` field in the
  HTML and the code.
 
  2. if a new field is added to the form, the code must be manually
- updated. Failure to do so while result in the new value being
+ updated. Failure to do so will result in the new field being
  silently ignored.
 
- 3. form fragments can not be easily combined because the `name` or `id`
- fields might collide.
+ 3. form fragments can not be easily combined because the `name` or
+`id` fields might collide. Additionally, there is no simple way to
+combine the validation/value extraction code.
 
  4. if the form fails to validate, it is difficult to redisplay the
  form with the error messages and data that was submitted.
@@ -49,42 +51,42 @@ the entire form has been filled out to perform validation.
 Brief History
 -------------
 
-`reform` is an extension of the OCaml-based formlets concept
+`reform` is an extension of the OCaml-based `formlets` concept
 originally developed by Ezra Cooper, Sam Lindley, Philip Wadler and
-Jeremy Yallop. The original formlets code was ported to Haskell as the
+Jeremy Yallop. The original `formlets` code was ported to Haskell as the
 `formlets` library, and then revamped again as the
-`digestive-functors` library.
+`digestive-functors <= 0.2` library.
 
-The `digestive-functors` 0.3 represents a major break from the
-traditional `formlets` model. The motivation behind
-`digestive-functors` 0.3 was to allow the separation of validators
-from the view code. This allows library authors to define validation
-for forms, but allow the library users to create the view for the
-forms. It also provides a mechanism to support templating systems like
-Heist, where the view is defined in an external XML file rather than
-Haskell code.
+`digestive-functors` 0.3 represents a major break from the traditional
+`formlets` model. The primary motivation behind `digestive-functors`
+0.3 was (mostly likely) to allow the separation of validators from the
+view code. This allows library authors to define validation for forms,
+while allowing the library users to create the view for the forms. It also
+provides a mechanism to support templating systems like `Heist`, where
+the view is defined in an external XML file rather than Haskell code.
 
-In order to achieve this, `digestive-functors` unlinks the validation
-and view code and requires the developers to stitch them back together
-using `String` based names. This leads to runtime errors.
+In order to achieve this, `digestive-functors` 0.3 unlinks the
+validation and view code and requires the developers to stitch them
+back together using `String` based names. This, of course, leads to
+runtime errors. If the library author adds new required fields to the
+validator, the user gets no compile time warnings or errors to let
+them know their code is broken.
 
 The `Reform` library is a heavily modified fork of
 `digestive-functors` 0.2. It builds on the the traditional `formlets`
 safety and style and extends it to allow view and validation
 separation in a type-safe manner.
 
-
 You can find the original papers on `formlets` [here](http://groups.inf.ed.ac.uk/links/formlets/).
 
+Hello `Form`!
+-------------
 
-Hello Form!
------------
-
-The easiest way to learn `Reform` is through example. We will
-start with a simple form that does not require any special
-validation. We will then extend the form, adding some
-simple validators. And then we will show how to split the validation and view
-into separate pieces of code.
+The easiest way to learn `Reform` is through example. We will start
+with a simple form that does not require any special validation. We
+will then extend the form, adding some simple validators. And then we
+will show how we can split the validation and view for our form into
+separate libraries.
 
 This example uses Happstack for the web server and HSP for the templating library.
 
@@ -94,17 +96,17 @@ First we have some pragmas:
 > {-# OPTIONS_GHC -F -pgmFtrhsx #-}
 > module Main where
 
-And then some imports. We import modules from three different `Reform` packages: the core `reform` library, the `reform-happstack` package, and the `reform-hsp` package:
+And then some imports. We import modules from three different `reform` packages: the core `reform` library, the `reform-happstack` package, and the `reform-hsp` package:
 
 > import Control.Applicative
 > import Control.Applicative.Indexed (IndexedFunctor(..), IndexedApplicative(..))
-> import Control.Monad             (msum)
+> import Control.Monad               (msum)
 > import Happstack.Server
 > import Happstack.Server.HSP.HTML ()
 > import HSP.ServerPartT
 > import HSP
 > import Text.Reform ( CommonFormError(..), Form, FormError(..), Proof(..), (++>)
->                    , (<++), decimal, prove, transformEither, transform)
+>                    , (<++), commonFormErrorStr, decimal, prove, transformEither, transform)
 > import Text.Reform.Happstack
 > import Text.Reform.HSP.String
 
@@ -114,7 +116,10 @@ Next we will create a type alias for our application's server monad:
 
 We will also want a function that generates a page template for our app:
 
-> appTemplate :: (Functor m, Monad m, EmbedAsChild (ServerPartT m) headers, EmbedAsChild (ServerPartT m) body) =>
+> appTemplate :: ( Functor m, Monad m
+>                , EmbedAsChild (ServerPartT m) headers
+>                , EmbedAsChild (ServerPartT m) body
+>                ) =>
 >                String     -- ^ contents of <title> tag
 >             -> headers    -- ^ extra content for <head> tag, use () for nothing
 >             -> body       -- ^ contents of <body> tag
@@ -131,7 +136,7 @@ We will also want a function that generates a page template for our app:
 >      </body>
 >     </html>
 
-Forms have the type 'Form' which looks like:
+Forms have the type `Form` which looks like:
 
 ] newtype Form m input error view proof a = Form { ... }
 
@@ -142,11 +147,11 @@ As you will note it is heavily parameterized:
  <dt><code>input</code></dt><dd>the framework specific type containing the fields from the form data set.</dd>
  <dt><code>error</code></dt><dd>An application specific type for form validation errors.</dd>
  <dt><code>view</code></dt><dd>The type of the view for the form.</dd>
- <dt><code>proof</code></dt><dd>A datatype which names something that has been proved about the result</dd>
- <dt><code>a</code></dt><dd>The value returned when the form data set is successfully decoded.</dd>
+ <dt><code>proof</code></dt><dd>A datatype which names something that has been proven about the result.</dd>
+ <dt><code>a</code></dt><dd>The value returned when the form data set is successfully decoded and validated.</dd>
 </dl>
 
-In order to keep our type signatures sane, it is convenient to create an application specific type alias to simplify things:
+In order to keep our type signatures sane, it is convenient to create an application specific type alias for the `Form` type:
 
 > type SimpleForm = Form (AppT IO) [Input] AppError [AppT IO (XMLType (ServerPartT IO))] ()
 
@@ -155,24 +160,29 @@ In order to keep our type signatures sane, it is convenient to create an applica
 > data AppError
 >     = Required
 >     | NotANatural String
->     | Common (CommonFormError [Input])
+>     | AppCFE (CommonFormError [Input])
 >       deriving Show
 
 
-Instead of have one error type for all the forms, we could have per-form error types -- or even just use `String`. The advantage of using a type is that it make it easier to providing I18N translations, or for users of a library to customize the error message text. The disadvantage of using a custom type over a plain `String` is that it can make it more difficult to combine forms into larger forms since they must all have the same error type.
+Instead of have one error type for all the forms, we could have per-form error types -- or even just use `String`. The advantage of using a type is that it makes it easier to provide I18N translations, or for users of a library to customize the text of the error messages. The disadvantage of using a custom type over a plain `String` is that it can make it more difficult to combine forms into larger forms since they must all have the same error type. Additionally, it is a bit more work to create the error type and the `FormError` instance.
 
 We will want an `EmbedAsChild` instance so that we can easily embed the errors in our HTML:
 
 > instance (Monad m) => EmbedAsChild (ServerPartT m) AppError where
->     asChild error = <% show error %>
+>     asChild Required          = asChild $ "required"
+>     asChild (NotANatural str) = asChild $ "Could not decode as a positive integer: " ++ str
+>     asChild (AppCFE cfe)      = asChild $ commonFormErrorStr show cfe
 
 The error type also needs a `FormError` instance:
 
 > instance FormError AppError where
 >     type ErrorInputType AppError = [Input]
->     commonFormError = Common
+>     commonFormError = AppCFE
 
-Internally, `reform` has an error type `CommonFormError` which is used to report things like missing fields and other errors. The `FormError` class is used to lift those errors into our custom error type.
+Internally, `reform` has an error type `CommonFormError` which is used
+to report things like missing fields and other internal errors. The
+`FormError` class is used to lift those errors into our custom error
+type.
 
 Now we have the groundwork laid to create a simple form. Let's create
 a form that allows users to post a message. First we will want a type to
@@ -206,15 +216,17 @@ Now we can create a very basic form:
 
 This form contains all the information needed to generate the form elements and to parse the submitted form data set and extract a `Message` value.
 
-The `label` function creates a `<label>` element using the supplied label.
+The following functions come from `reform-hsp`. `reform-blaze` provides similar functions.
 
-The `inputText` function creates a `<input type="text">` input element using the argument as the initial value.
+ * `label` function creates a `<label>` element using the supplied label.
 
-The `inputSubmit` function creates a `<input type="submit">` using the argument as the value.
+ * `inputText` function creates a `<input type="text">` input element using the argument as the initial value.
 
-The `textarea` function creates `<textearea>`. The arguments are the number of cols, rows, and initial contents.
+ * `inputSubmit` function creates a `<input type="submit">` using the argument as the value.
 
-The `br` functions creates a `Form` element that doesn't do anything except insert a `<br>` tag.
+ * `textarea` function creates `<textearea>`. The arguments are the number of cols, rows, and initial contents.
+
+ * `br` functions creates a `Form` element that doesn't do anything except insert a `<br>` tag.
 
 The `<$>`, `<*>` and `<*` operators come from `Control.Applicative`. If you are not familiar with applicative functors then you will want to read a [tutorial such as this one](http://en.wikibooks.org/wiki/Haskell/Applicative_Functors).
 
@@ -233,47 +245,14 @@ then the `label` and `inputText` would each have unique `FormId` values. But whe
 
 ] label "name: " ++> inputText
 
-they have the same `FormId` value. The `FormId` value is typically used to create unique `name` and `id` attributes for the form elements. But, in the case of `label`, we want the `for` attribute to refer to the `id` of the element it is labeling.
+they have the same `FormId` value. The `FormId` value is typically used to create unique `name` and `id` attributes for the form elements. But, in the case of `label`, we want the `for` attribute to refer to the `id` of the element it is labeling. There is also a similar operator <++ for when you want the label after the element.
 
-There is also a similar operator <++ for when you want the label after the element.
+We also use `<++` and `++>` to attach error messages to form elements.
 
-Using the form
---------------
+Using the `Form`
+----------------
 
-The easiest way to use a `Form` are the `viewForm` and `eitherForm` functions.
-
-If you are simply rendering the form for a `GET` request, then you probably want `viewForm` which will render the form using `NoEnviroment`:
-
-] viewForm :: (Monad m) =>
-]            String                           -- ^ form prefix
-]         -> Form m input error view proof a  -- ^ form to view
-]         -> m view
-
-The form prefix is a `String` that gets prepended to the automatically generated `FormIds`. This is used to ensure that every form on the the page has unique `FormIds`. While it is ok if multiple `<form>` elements on the same page reuse `name` attributes -- they must still have unique `id` attributes. Hence the need for a unique prefix.
-
-The easiest way to handle a `POST` request is to use the `eitherForm` function.
-
-] eitherForm :: Monad m =>
-]               Environment m input             -- ^ Input environment
-]            -> String                          -- ^ form prefix
-]            -> Form m input error view proof a -- ^ Form to run
-]            -> m (Either view a)               -- ^ Result
-
-If the form validates successfully then `eitherForm` will return `Right a`. If the form fails to validate, then it returns `Left view`. The `view` will contain the form already prepopulated with the data the user submitted plus the validation error messages.
-
-The `Environment m input` argument tells the `reform` code how to retrieve and decode the form data set -- it is specific to each web framework. `happstack-reform` exports:
-
-] environment :: (Happstack m) => Environment m [Input]
-
-And also a simple wrapper function:
-
-] happstackForm :: (Happstack m) =>
-]                  String                            -- ^ form prefix
-]               -> Form m [Input] error view proof a -- ^ Form to run
-]               -> m (Either view a)                 -- ^ Result
-] happstackForm = eitherForm environment
-
-Using these functions we can not create a simple app which uses our form. First we will create a simple page handler for the form:
+The easiest way to use `Form` is with the `happstackEitherForm` function:
 
 > postPage :: AppT IO Response
 > postPage =
@@ -283,12 +262,46 @@ Using these functions we can not create a simple app which uses our form. First 
 >              (Left formHtml) -> appTemplate "post" () formHtml
 >              (Right msg)     -> appTemplate "Your Message" () $ renderMessage msg
 
-Note that `viewForm` and `eitherForm` do not generate the `<form>` tag -- only its children.
+`happstackEitherForm` has the type:
+
+] happstackEitherForm :: (Happstack m) =>
+]                        ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
+]                     -> String                               -- ^ form prefix
+]                     -> Form m [Input] error view proof a    -- ^ Form to run
+]                     -> m (Either view a)                    -- ^ Result
+
+For a `GET` request, `happstackEitherForm` will view the form with `NoEnvironment`. It will always return `Left view`.
+
+For a `POST` request, `happstackEitherForm` will attempt to validate the form using the form submission data. If successful, it will return `Right a`. If unsuccessful, it will return `Left view`. In this case, the view will include the previously submitted data plus any error messages.
+
+Note that since `happstackEitherForm` is intended to handle both `GET` and `POST` requests, it is important that you do not have any `method` calls guarding `happstackEitherForm` that would interfere.
+
+The first argument to `happstackEitherForm` is a function what wraps the view inside a `<form>` element. This function will typically be provided by template specific reform package. For example, `reform-hsp` exports:
+
+] -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
+] form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
+]         action                  -- ^ action url
+]      -> [(String,String)]       -- ^ extra hidden fields to add to form
+]      -> [XMLGenT x (XMLType x)] -- ^ children
+]      -> [XMLGenT x (XMLType x)]
+
+The first argument to `form` is the attribute to use for the `action` attribute. The other arguments will be filled out by `happstackEitherForm`.
+
+The second argument to `happstackEitherForm` is a unique `String`. This is used to ensure that each `<form>` on a page generates unique `FormId` values. This is required since the `FormId` is typically used to generate `id` attributes, which must be unique.
+
+The third argument to `happstackEitherForm` is the the form we want to use.
 
 `reform` function
 -------------------
 
-You may have noticed that `postPage` seems to contain a fair amount of boilerplate and ways to screw things up. `happstack-reform` exports a `reform` function which reduces the amount of boilerplate required:
+`happstackEitherForm` is fairly straight-forward, but can be a bit tedious at times:
+
+ 1. having to do `case result of` is a bit tedious.
+ 2. when using `HSP`, it is a bit annoying that the `happstackEitherForm` appears outside of the rest of the page template
+
+These problems are even more annoying when a page contains multiple forms.
+
+`reform-happstack` exports `reform` which can be used to embed a `Form` directly inside an `HSP` template:
 
 > postPage2 :: AppT IO Response
 > postPage2 =
@@ -298,36 +311,41 @@ You may have noticed that `postPage` seems to contain a fair amount of boilerpla
 >     where
 >       displayMessage msg = appTemplate "Your Message" () $ renderMessage msg
 
-`reform` has a pretty intense looking type signature but it is actually pretty straight-forward:
+`reform` has a pretty intense looking type signature but it is actually pretty straight-forward, and similar to `eitherHappstackForm`:
 
-] -- | turn a formlet into XML+ServerPartT which can be embedded in a larger document
-] reform :: (ToMessage b, Happstack m, Alternative m) =>
-]             (view -> view)                          -- ^ wrap raw form html inside a <form> tag
-]          -> String                                  -- ^ prefix
-]          -> (a -> m b)                              -- ^ handler used when form validates
-]          -> Maybe ([(FormRange, e)] -> view -> m b) -- ^ handler used when form does not validate
-]          -> Form m [Input] e view proof a           -- ^ the formlet
-]          -> m view
-] reform toForm prefix handleSuccess mHandleFailure form = ...
+] reform :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
+]           ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
+]        -> String                                      -- ^ prefix
+]        -> (a -> m b)                                  -- ^ success handler used when form validates
+]        -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ failure handler used when form does not validate
+]        -> Form m [Input] error view proof a           -- ^ the formlet
+]        -> m view
+] reform toForm prefix success failure form = ...
+
 
 <dl>
- <dt>toForm</dt><dd>should wrap the view returned by the form in a <code>&lt;form&gt;</code> tag. Here we use the <code>form</code> function from <code>reform-happstack</code>. The first argument to <code>form</code> is the <code>action</code> url.</dd>
- <dt>prefix</dt><dd>the <code>FormId</code> prefix to use when rendering this form.</dd>
- <dt>handleSuccess</dt><dd>is the function to call if the form validates successfully. It gets the value extracted from the form.</dd>
- <dt>hHandleFailure</dt><dd>is a function to call if for validation fails. If you pass in <code>Nothing</code> then the form will simple by redisplayed in the original context.</dd>
- <dt>form</dt><dd>is the <code>Form</code> to process.</dd>
+ <dt><code>toForm</code></dt><dd>should wrap the view returned by the form in a <code>&lt;form&gt;</code> tag. Here we use the <code>form</code> function from <code>reform-happstack</code>. The first argument to <code>form</code> is the <code>action</code> url.</dd>
+ <dt><code>prefix</code></dt><dd>the <code>FormId</code> prefix to use when rendering this form.</dd>
+ <dt><code>handleSuccess</code></dt><dd>is the function to call if the form validates successfully. It gets the value extracted from the form.</dd>
+ <dt><code>hHandleFailure</code></dt><dd>is a function to call if for validation fails. If you pass in <code>Nothing</code> then the form will simple by redisplayed in the original context.</dd>
+ <dt><code>form</code></dt><dd>is the <code>Form</code> to process.</dd>
 </dl>
 
-The `reform` function also has a hidden benefit -- it provides cross-site request forgery (CSRF) protection, using the double-submit method. When the `(form>` is generated, the `reform` function will create a secret token and add it to a hidden field in the form. It will also put the secret token in a cookie. When the user submits the form, the `reform` function will check that the value in the cookie and the hidden field match. This prevents rogue sites from tricking users into submitting forms, because the rogue site can not get access to the secret token in the user's cookie.
+Cross-Site Request Forgery (CSRF) Protection
+--------------------------------------------
 
-benefits so far
+The `happstackEitherForm` and `reform` functions also have a hidden benefit -- they provide cross-site request forgery (CSRF) protection, using the double-submit method. When the `<form>` is generated, the `reform` or `happstackEitherForm` function will create a secret token and add it to a hidden field in the form. It will also put the secret token in a cookie. When the user submits the form, the `reform` function will check that the value in the cookie and the hidden field match. This prevents rogue sites from tricking users into submitting forms, because the rogue site can not get access to the secret token in the user's cookie.
+
+That said, if your site is vulnerable to cross site script (XSS) attacks, then it may be possible for a remote site to steal the cookie value.
+
+Benefits So Far
 ---------------
 
 The form we have so far is very simple. It accepts any input, not caring if the fields are empty or not. It also does not try to convert the `String` values to another type before adding them to the record.
 
-However, we do still see benefits from `reform`. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adhears to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used. Additionally, we get automatic CSRF protection when using `reform`.
+However, we do still see a number of benefits. We specified the form once, and from that we automatically extract the code to generate HTML and the code to extract the values from the form data set. This adheres to the DRY (don't repeat yourself) principle. We did not have to explicitly name our fields, keep the names in-sync in two different places, worry if the HTML and processing code contain the same set of fields, or worry if a name/id has already been used. Additionally, we get automatic CSRF protection.
 
-Form with simple validation
+`Form` with Simple Validation
 ---------------------------
 
 The next step is to perform some validation on the input fields. If the fields validate successfully, then we get a `Message`. But if the input fails to validate, then we will automatically regenerate the `Form` showing the data the user submitted plus validation errors.
@@ -338,7 +356,7 @@ For this example, let's simply make sure they entered something in all the field
 > required []  = Left Required
 > required str = Right str
 
-In this case we are simply checking that the `String` is not null. If it isn't we return an error, otherwise we return the `String` unmodified. Some validators will actually transform the value -- such as converting the `String` to an `Integer`.
+In this case we are simply checking that the `String` is not null. If it is null we return an error, otherwise we return the `String` unmodified. Some validators will actually transform the value -- such as converting the `String` to an `Integer`.
 
 To apply this validation function we can use `transformEither`:
 
@@ -347,7 +365,7 @@ To apply this validation function we can use `transformEither`:
 ]                 -> (a -> Either error b)
 ]                 -> Form m input error view () b
 
-We can update our form to:
+We can update our `Form` to:
 
 > validPostForm :: SimpleForm Message
 > validPostForm =
@@ -360,9 +378,13 @@ We can update our form to:
 The `errorList` will add a list of error messages to a `Form`
 element. This gives greater control over where error messages appear
 in the form. The list of errors is literally a list of errors inside
-an:
+a `<ul>` tag:
 
     <ul class="reform-error-list">
+      <li>error 1</li>
+      <li>error 2</li>
+      <li>error n</li>
+    </ul>
 
 You can use CSS to control the theming.
 
@@ -374,7 +396,7 @@ For even greater control we could use the `Text.Reform.Generalized.errors` funct
 
 This allows you to provide your own custom view code for rendering the errors.
 
-We can wrap up the `validForm` the same way we did `postForm`:
+We can wrap up the `validForm` the exact same way we did `postForm`:
 
 > validPage :: AppT IO Response
 > validPage =
@@ -389,7 +411,12 @@ A few names have been changed, but everything else is exactly the same.
 Separating Validation and Views
 ===============================
 
-One of the primary motivations behind the changes in `digestive-functors 0.3` is allowing developers to separate the validation code from the code which generates the view. We can do this using `reform` as well -- in a manner that is both more flexible and which provides greater type safety. The key is the `proof` parameter -- which we have so far set to `()` and otherwise ignored.
+One of the primary motivations behind the changes in
+`digestive-functors 0.3` is allowing developers to separate the
+validation code from the code which generates the view. We can do this
+using `reform` as well -- in a manner that is both more flexible and
+which provides greater type safety. The key is the `proof` parameter
+-- which we have so far set to `()` and otherwise ignored.
 
 In `reform` we divide the work into two pieces:
 
@@ -458,15 +485,15 @@ For `ProofForm`, we can do the same thing use `ipure`:
 > mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
 > mkMessage = ipure (\NotNull NotNull NotNull -> ValidMessage) Message
 
-`mkMessage` can only be applied to `String` values that have been proven `NotNull`.
+This creates a chain of validation since `mkMessage` can only be applied to `String` values that have been proven `NotNull`.
 
-The library author can then specify that the user supplied form has the type:
+The library author can now specify that the user supplied `Form` has the type:
 
-] someFunc :: Form ValidMessage Message -> ...
+] someFunc :: ProofForm ValidMessage Message -> ...
 
-You will notice that what we have constructed so far has imposes no restrictions on what types of form elements can be used, what template library must be used, or what web server must be used.
+You will notice that what we have constructed so far has imposes no restrictions on what types of form elements can be used, what template library must be used, or what web server must be used. At the same time, in order for the library user to create a `ProofForm` with the required type, they must apply the supplied validators. Now, clearly a devious library user could use evil tricks to circumvent the system -- and they will get what they deserve.
 
-To construct a the `Form`, we use a pattern very similar to what we did when using `SimpleForm`. They only real differences are:
+To construct the `Form`, we use a pattern very similar to what we did when using `SimpleForm`. They only real differences are:
 
  1. we use `prove` instead of `transformEither`
  2. we use `<<*>>` instead of `<*>`
@@ -478,7 +505,7 @@ To apply a `Proof` we use the `prove` function:
 ]       -> Proof m error proof a b
 ]       -> Form m input error view proof b
 
-So, we can make a `ProofForm` for non-empty `Strings` like this:
+So, we can make a `ProofForms` for non-empty `Strings` like this:
 
 > inputText' :: String -> ProofForm NotNull String
 > inputText' initialValue = inputText initialValue `prove` (notNullProof Required)
@@ -486,7 +513,7 @@ So, we can make a `ProofForm` for non-empty `Strings` like this:
 > textarea' :: Int -> Int -> String -> ProofForm NotNull String
 > textarea' cols rows initialValue = textarea cols rows initialValue `prove` (notNullProof Required)
 
-to create the ValidMessage form we can then combine the pieces like:
+to create the `ValidMessage` form we can then combine the pieces like:
 
 > provenPostForm :: ProofForm ValidMessage Message
 > provenPostForm =
@@ -495,7 +522,7 @@ to create the ValidMessage form we can then combine the pieces like:
 >               <<*>> errorList ++> label "message: " ++> textarea' 80 40 ""
 
 This code looks quite similar to our `validPostForm` code. The primary
-difference is that we use `<<*>>` instead of `<*>`. That brings is to the topic of indexed applicative functors.
+difference is that we use `<<*>>` instead of `<*>`. That brings is to the topic of type-indexed applicative functors.
 
 Type Indexed / Parameterized Applicative Functors
 -------------------------------------------------
@@ -508,13 +535,13 @@ In order to make an `Applicative` instance of `Form`, all the proof type variabl
 
 ] instance (Functor m, Monad m, Monoid view, Monoid proof) => (Form m input error view proof) where ...
 
-for `SimpleForm` we used this instance, which is defined for us already in `reform`:
+for `SimpleForm` we used the following instance, which is defined for us already in `reform`:
 
 ] instance (Functor m, Monoid view, Monad m) => Applicative (Form m input error view ()) where
 
 With this instance, `reform` feels and works almost exactly like `digestive-functors <= 0.2`.
 
-But, for the `provePostForm`, that instance won't work for us. `mkMessage` has the type:
+But, for the `provePostForm`, that `Applicative` instance won't work for us. `mkMessage` has the type:
 
 ] mkMessage :: ProofForm (NotNull -> NotNull -> NotNull -> ValidMessage) (String -> String -> String -> Message)
 
@@ -522,7 +549,12 @@ and we want to apply it to `ProofForms` created by:
 
 ] inputText' :: String -> ProofForm NotNull String
 
-Here the proof types don't match up. Instead we need a `Applicative Functor` that allows us to transform the return value *and* the proof value. We need, what I believe is called, a `Type-Indexed Applicative Functor` or a `Parameterized Applicative Functor`. Most literature on this subject is actually dealing with type-indexed or parameterized `Monads`, but the idea is the same.
+Here the proof types don't match up. Instead we need a `Applicative
+Functor` that allows us to transform the return value *and* the proof
+value. We need, what I believe is called, a `Type-Indexed Applicative
+Functor` or a `Parameterized Applicative Functor`. Most literature on
+this subject is actually dealing with type-indexed or parameterized
+`Monads`, but the idea is the same.
 
 The `reform` library defines two new classes, `IndexedFunctor` and `IndexedApplicative`:
 
@@ -546,8 +578,8 @@ These classes look just like their non-indexed counterparts, except that they tr
 
 We use these classes the same way we would use the normal `Functor` and `Applicative` classes. The only difference is that the type-checker can now enforce the proofs.
 
-Using proofs in unproven forms
-------------------------------
+Using `Proofs` in unproven `Forms`
+----------------------------------
 
 The `Proof` module provides a handful of useful `Proofs` that perform
 transformations, such as converting a `String` to a `Int`:
@@ -563,7 +595,10 @@ We can use this `Proof` with our `SimpleForm` by using the `transform` function:
 ]           -> Proof m error proof a b
 ]           -> Form m input error view () b
 
-`transform` is similar to the `prove` function, except it ignores the proof name and sets the proof to `()`. Technically `()` is still a proof -- but we consider it to be the proof that proves nothing. We can use `transform` to create a simple form that parses a positive `Integer` value.
+`transform` is similar to the `prove` function, except it ignores the proof name and sets the proof to `()`. Technically `()` is still a proof -- but we consider it to be the proof that proves nothing.
+
+Here is an example of using `transform` with `decimal` to create a
+simple form that parses a positive `Integer` value:
 
 > inputInteger :: SimpleForm Integer
 > inputInteger = inputText "" `transform` (decimal NotANatural)
@@ -593,3 +628,5 @@ Here is a main function that ties all the examples together:
 >                        <li><a href="/valid">Valid Form</a></li>
 >                       </ul>
 >                 ]
+
+There is nothing `reform` specific about.
