@@ -316,7 +316,7 @@ li frm = mapView (H.li ! A.class_ "reform") frm
 form :: (H.ToValue action) =>
         action                  -- ^ action url
      -> [(String, String)]       -- ^ hidden fields to add to form
-     -> Html -- ^ childern
+     -> Html -- ^ children
      -> Html
 form action hidden children =
     H.form ! A.action (toValue action) ! A.method "POST" ! A.enctype "multipart/form-data" $

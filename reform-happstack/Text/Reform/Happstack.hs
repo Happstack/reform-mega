@@ -45,10 +45,10 @@ environment =
 --
 -- see also: 'happstackViewForm'
 happstackEitherForm :: (Happstack m) =>
-                  ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
-               -> String                               -- ^ form prefix
-               -> Form m [Input] error view proof a    -- ^ Form to run
-               -> m (Either view a)                    -- ^ Result
+                       ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
+                    -> String                               -- ^ form prefix
+                    -> Form m [Input] error view proof a    -- ^ Form to run
+                    -> m (Either view a)                    -- ^ Result
 happstackEitherForm toForm prefix frm =
     do mthd <- rqMethod <$> askRq
        case mthd of

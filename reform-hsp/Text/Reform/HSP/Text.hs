@@ -237,7 +237,7 @@ li = C.li
 form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
         action                  -- ^ action url
      -> [(String,String)]       -- ^ extra hidden fields to add to form
-     -> [XMLGenT x (XMLType x)] -- ^ childern
+     -> [XMLGenT x (XMLType x)] -- ^ children
      -> [XMLGenT x (XMLType x)]
 form = C.form
 
