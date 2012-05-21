@@ -10,7 +10,12 @@ Maintainer:          jeremy@n-heptane.com
 Copyright:           2012 Jeremy Shaw, Jasper Van der Jeugt, SeeReason Partners LLC
 Category:            Web
 Build-type:          Simple
-Cabal-version:       >=1.2
+Cabal-version:       >=1.6
+
+source-repository head
+    type:     darcs
+    subdir:   reform-hsp
+    location: http://patch-tag.com/r/stepcut/reform
 
 Library
   Exposed-modules:     Text.Reform.HSP.Common
