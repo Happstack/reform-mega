@@ -15,7 +15,7 @@ Cabal-version:       >=1.6
 source-repository head
     type:     darcs
     subdir:   reform-blaze
-    location: http://patch-tag.com/r/stepcut/reform
+    location: http://hub.darcs.net/stepcut/reform
 
 Library
   Exposed-modules:   Text.Reform.Blaze.Common
