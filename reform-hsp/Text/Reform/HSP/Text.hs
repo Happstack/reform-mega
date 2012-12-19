@@ -27,6 +27,7 @@ module Text.Reform.HSP.Text
     , selectMultiple
       -- * \<label\> element
     , label
+    , labelText
       -- * errors
     , errorList
     , childErrorList
@@ -183,10 +184,29 @@ selectMultiple = C.selectMultiple
 -- Use this with <++ or ++> to ensure that the @for@ attribute references the correct @id@.
 --
 -- > label "some input field: " ++> inputText ""
+--
+-- see also: 'labelText'
 label :: (Monad m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x c) =>
          c
       -> Form m input error [XMLGenT x (XMLType x)] () ()
 label = C.label
+
+-- | create a @\<label\>@ element.
+--
+-- Use this with <++ or ++> to ensure that the @for@ attribute references the correct @id@.
+--
+-- > labelText "some input field: " ++> inputText ""
+--
+-- This function is provided as an alternative to 'label' because when
+-- the 'OverloadedStrings' extension is enabled, you will get
+-- ambiguous type errors when attempting to apply 'label' to a string
+-- literal. While the type error can be fixed using an explicit type
+-- signature, calling 'labelText' looks nicer.
+labelText :: (Monad m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x Text) =>
+         Text
+      -> Form m input error [XMLGenT x (XMLType x)] () ()
+labelText = C.label
+
 
 -- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
 --

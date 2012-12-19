@@ -1,5 +1,5 @@
 Name:                reform-hsp
-Version:             0.1.1
+Version:             0.1.2
 Synopsis:            Add support for using HSP with Reform
 Description:         Reform is a library for building and validating forms using applicative functors. This package add support for using reform with HSP.
 Homepage:            http://www.happstack.com/
