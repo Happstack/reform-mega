@@ -324,3 +324,10 @@ form action hidden children =
       where
         mkHidden (nm, val) =
             H.input ! type_ "hidden" ! name (toValue nm) ! value (toValue val)
+
+-- | add an attribute to the 'Html' for a form element.
+setAttr :: (Monad m, Functor m) =>
+           Form m input error Html proof a
+         -> H.Attribute
+         -> Form m input error Html proof a
+setAttr form attr = mapView (\e -> e ! attr) form
