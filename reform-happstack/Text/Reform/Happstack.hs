@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, OverloadedStrings #-}
 {- |
 Support for using Reform with the Haskell Web Framework Happstack. <http://happstack.com/>
 -}
@@ -13,11 +13,13 @@ import qualified Data.ByteString.Lazy.UTF8 as UTF8
 import Data.Either                         (lefts, rights)
 import Data.Maybe                          (mapMaybe)
 import Data.Monoid                         (Monoid)
+import Data.Text.Lazy                      (Text)
+import qualified Data.Text.Lazy            as TL
 import System.Random                       (randomIO)
 import Text.Reform.Backend              (FormInput(..), FileType, CommonFormError(NoFileFound, MultiFilesFound), commonFormError)
 import Text.Reform.Core                 (Environment(..), Form, Proved(..), Value(..), View(..), (++>), eitherForm, runForm, mapView, viewForm)
 import Text.Reform.Result               (Result(..), FormRange)
-import Happstack.Server                 (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, askRq, expireCookie, forbidden, lookCookie, lookInputs, look, body, escape, method, mkCookie, getDataFn)
+import Happstack.Server                 (Cookie(..), CookieLife(Session), ContentType, Happstack, Input(..), Method(GET, HEAD, POST), ServerMonad(localRq), ToMessage(..), Request(rqMethod), addCookie, askRq, expireCookie, forbidden, lookCookie, lookInputs, lookText, body, escape, method, mkCookie, getDataFn)
 
 -- FIXME: we should really look at Content Type and check for non-UTF-8 encodings
 instance FormInput [Input] where
@@ -45,8 +47,8 @@ environment =
 --
 -- see also: 'happstackViewForm'
 happstackEitherForm :: (Happstack m) =>
-                       ([(String, String)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
-                    -> String                               -- ^ form prefix
+                       ([(Text, Text)] -> view -> view) -- ^ wrap raw form html inside a <form> tag
+                    -> Text                                 -- ^ form prefix
                     -> Form m [Input] error view proof a    -- ^ Form to run
                     -> m (Either view a)                    -- ^ Result
 happstackEitherForm toForm prefix frm =
@@ -69,10 +71,10 @@ happstackEitherForm toForm prefix frm =
 --
 -- see also: 'happstackEitherForm'.
 happstackViewForm :: (Happstack m) =>
-                ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
-             -> String
-             -> Form m input error view proof a
-             -> m view
+                     ([(Text, Text)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
+                  -> Text
+                  -> Form m input error view proof a
+                  -> m view
 happstackViewForm toForm prefix frm =
     do formChildren <- viewForm prefix frm
        happstackView toForm prefix formChildren
@@ -85,50 +87,50 @@ happstackViewForm toForm prefix frm =
 --
 -- see also: 'happstackViewForm', 'happstackEitherForm', 'checkCSRF'
 happstackView :: (Happstack m) =>
-            ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
-         -> String
-         -> view
-         -> m view
+                 ([(Text, Text)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
+              -> Text
+              -> view
+              -> m view
 happstackView toForm prefix view =
     do csrfToken <- addCSRFCookie csrfName
        return (toForm [(csrfName, csrfToken)] view)
 
 -- | Utility Function: add a cookie for CSRF protection
 addCSRFCookie :: (Happstack m) =>
-                 String    -- ^ name to use for the cookie
-              -> m String
+                 Text    -- ^ name to use for the cookie
+              -> m Text
 addCSRFCookie name =
-    do mc <- optional $ lookCookie name
+    do mc <- optional $ lookCookie (TL.unpack name)
        case mc of
          Nothing ->
              do i <- liftIO $ randomIO
-                addCookie Session ((mkCookie name (show i)) { httpOnly = True })
-                return (show (i :: Integer))
+                addCookie Session ((mkCookie (TL.unpack name) (show i)) { httpOnly = True })
+                return (TL.pack $ show (i :: Integer))
          (Just c) ->
-             return (cookieValue c)
+             return (TL.pack $ cookieValue c)
 
 -- | Utility Function: get CSRF protection cookie
-getCSRFCookie :: (Happstack m) => String -> m String
-getCSRFCookie name = cookieValue <$> lookCookie name
+getCSRFCookie :: (Happstack m) => Text -> m Text
+getCSRFCookie name = TL.pack . cookieValue <$> lookCookie (TL.unpack name)
 
 -- | Utility Function: check that the CSRF cookie and hidden field exist and are equal
 --
 -- If the check fails, this function will call:
 --
 -- > escape $ forbidden (toResponse "CSRF check failed.")
-checkCSRF :: (Happstack m) => String -> m ()
+checkCSRF :: (Happstack m) => Text -> m ()
 checkCSRF name =
     do mc <- optional $ getCSRFCookie name
-       mi <- optional $ look name
+       mi <- optional $ lookText (TL.unpack name)
        case (mc, mi) of
          (Just c, Just c')
              | c == c' -> return ()
-         _ -> escape $ forbidden (toResponse "CSRF check failed.")
+         _ -> escape $ forbidden (toResponse ("CSRF check failed." :: Text))
 
 -- | generate the name to use for the csrf cookie
 --
--- Currently this returns the static cookie "reform-csrf". Using the prefix would allow 
-csrfName :: String
+-- Currently this returns the static cookie "reform-csrf". Using the prefix would allow
+csrfName :: Text
 csrfName = "reform-csrf"
 
 -- | This function allows you to embed a a single 'Form' into a HTML page.
@@ -138,8 +140,8 @@ csrfName = "reform-csrf"
 --
 -- see also: 'reform'
 reformSingle :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
-                  ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a <form> tag
-               -> String                                      -- ^ prefix
+                  ([(Text, Text)] -> view -> view)            -- ^ wrap raw form html inside a <form> tag
+               -> Text                                      -- ^ prefix
                -> (a -> m b)                                  -- ^ handler used when form validates
                -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ handler used when form does not validate
                -> Form m [Input] error view proof a           -- ^ the formlet
@@ -192,8 +194,8 @@ reformSingle toForm prefix handleSuccess mHandleFailure form =
 -- request forgery (CSRF) protection, and to support multiple forms on
 -- the same page.
 reform :: (ToMessage b, Happstack m, Alternative m, Monoid view) =>
-            ([(String, String)] -> view -> view)        -- ^ wrap raw form html inside a @\<form\>@ tag
-         -> String                                      -- ^ prefix
+            ([(Text, Text)] -> view -> view)            -- ^ wrap raw form html inside a @\<form\>@ tag
+         -> Text                                        -- ^ prefix
          -> (a -> m b)                                  -- ^ success handler used when form validates
          -> Maybe ([(FormRange, error)] -> view -> m b) -- ^ failure handler used when form does not validate
          -> Form m [Input] error view proof a           -- ^ the formlet
@@ -203,10 +205,10 @@ reform toForm prefix success failure form =
     guard prefix (reformSingle toForm' prefix success failure form)
     where
       toForm' hidden view = toForm (("formname",prefix) : hidden) view
-      guard :: (Happstack m) => String -> m a -> m a
+      guard :: (Happstack m) => Text -> m a -> m a
       guard formName part =
           (do method POST
-              submittedName <- getDataFn (look "formname")
+              submittedName <- getDataFn (lookText "formname")
               if (submittedName == (Right formName))
                then part
                else localRq (\req -> req { rqMethod = GET }) part
