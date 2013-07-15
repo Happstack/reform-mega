@@ -2,6 +2,7 @@
 module Text.Reform.Blaze.Common where
 
 import Data.Monoid (mconcat, mempty, (<>))
+import Data.Text.Lazy (Text)
 import Text.Reform.Backend
 import Text.Reform.Core
 import Text.Reform.Generalized as G
@@ -315,7 +316,7 @@ li frm = mapView (H.li ! A.class_ "reform") frm
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
 form :: (H.ToValue action) =>
         action                  -- ^ action url
-     -> [(String, String)]       -- ^ hidden fields to add to form
+     -> [(Text, Text)]       -- ^ hidden fields to add to form
      -> Html -- ^ children
      -> Html
 form action hidden children =
