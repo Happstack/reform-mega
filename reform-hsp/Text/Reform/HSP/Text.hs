@@ -41,20 +41,22 @@ module Text.Reform.HSP.Text
     , setAttrs
     ) where
 
-import Data.Text (Text, empty)
-import HSP
+import Data.Text (empty)
+import qualified Data.Text as T
+import Data.Text.Lazy (Text)
+import HSP.XMLGenerator
 import Text.Reform
 import qualified Text.Reform.HSP.Common as C
 
 -- | Create an @\<input type=\"text\"\>@ element
-inputText :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-               Text -- ^ initial value
-            -> Form m input error [XMLGenT x (XMLType x)] () Text
+inputText :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text)) =>
+               T.Text -- ^ initial value
+            -> Form m input error [XMLGenT x (XMLType x)] () T.Text
 inputText initialValue = C.inputText getInputText initialValue
 
 -- | Create an @\<input type=\"password\"\>@ element
-inputPassword :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-                 Form m input error [XMLGenT x (XMLType x)] () Text
+inputPassword :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text)) =>
+                 Form m input error [XMLGenT x (XMLType x)] () T.Text
 inputPassword = C.inputPassword getInputText empty
 
 -- | Create an @\<input type=\"submit\"\>@ element
@@ -64,23 +66,23 @@ inputPassword = C.inputPassword getInputText empty
 --   [@Just@ /value/] if this button was used to submit the form.
 --
 --   [@Nothing@]    if this button was not used to submit the form.
-inputSubmit :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-               Text -- ^ @value@ attribute. Used for button label, and value if button is submitted.
-            -> Form m input error [XMLGenT x (XMLType x)] () (Maybe Text)
+inputSubmit :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text)) =>
+               T.Text -- ^ @value@ attribute. Used for button label, and value if button is submitted.
+            -> Form m input error [XMLGenT x (XMLType x)] () (Maybe T.Text)
 inputSubmit initialValue = C.inputSubmit getInputText initialValue
 
 -- | Create an @\<input type=\"reset\"\>@ element
 --
 -- This element does not add any data to the form data set.
-inputReset :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-              Text -- ^ value attribute. Used only to label the button.
+inputReset :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text)) =>
+              T.Text -- ^ value attribute. Used only to label the button.
            -> Form m input error [XMLGenT x (XMLType x)] () ()
 inputReset = C.inputReset
 
 -- | Create an @\<input type=\"hidden\"\>@ element
-inputHidden :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-               Text -- ^ value to store in the hidden element
-            -> Form m input error [XMLGenT x (XMLType x)] () Text
+inputHidden :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text)) =>
+               T.Text -- ^ value to store in the hidden element
+            -> Form m input error [XMLGenT x (XMLType x)] () T.Text
 inputHidden initialValue = C.inputHidden getInputText initialValue
 
 -- | Create an @\<input type=\"button\"\>@ element
@@ -88,24 +90,24 @@ inputHidden initialValue = C.inputHidden getInputText initialValue
 -- The element is a push button with a text label. The button does nothing by default, but actions can be added using javascript. This element does not add any data to the form data set.
 --
 -- see also: 'C.button'
-inputButton :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
+inputButton :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text Text)) =>
                Text -- ^ value attribute. Used to label the button.
             -> Form m input error [XMLGenT x (XMLType x)] () ()
 inputButton label = C.inputButton label
 
 -- | Create a \<textarea\>\<\/textarea\> element
-textarea :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text), EmbedAsChild x Text) =>
+textarea :: (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x (Attr Text T.Text), EmbedAsChild x T.Text) =>
             Int    -- ^ cols
          -> Int    -- ^ rows
-         -> Text -- ^ initial contents
-         -> Form m input error [XMLGenT x (XMLType x)] () Text
+         -> T.Text -- ^ initial contents
+         -> Form m input error [XMLGenT x (XMLType x)] () T.Text
 textarea rows cols initialValue = C.textarea getInputText rows cols initialValue
 
 -- | create a  @\<button type=\"submit\"\>\<\/button\>@ element
-buttonSubmit :: ( Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId), EmbedAsAttr x (Attr String Text)) =>
-                Text -- ^ value attribute. Returned if this button submits the form.
+buttonSubmit :: ( Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x children , EmbedAsAttr x (Attr Text FormId), EmbedAsAttr x  (Attr Text T.Text)) =>
+                T.Text -- ^ value attribute. Returned if this button submits the form.
              -> children -- ^ children to embed in the \<button\>
-             -> Form m input error [XMLGenT x (XMLType x)] () (Maybe Text)
+             -> Form m input error [XMLGenT x (XMLType x)] () (Maybe T.Text)
 buttonSubmit = C.buttonSubmit getInputText
 
 --------------------------------------------------------------------------------
@@ -117,21 +119,21 @@ buttonSubmit = C.buttonSubmit getInputText
 -- returns a 'Bool' indicating if it was checked or not.
 --
 -- see also 'inputCheckboxes'
-inputCheckbox :: forall x error input m. (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
+inputCheckbox :: forall x error input m. (Monad m, FormInput input, FormError error, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId)) =>
                    Bool  -- ^ initially checked
                 -> Form m input error [XMLGenT x (XMLType x)] () Bool
 inputCheckbox = C.inputCheckbox
 
 -- | Create a group of @\<input type=\"checkbox\"\>@ elements
 --
-inputCheckboxes :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
+inputCheckboxes :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
                    [(a, lbl)]  -- ^ (value, label)
                 -> (a -> Bool) -- ^ function which marks if a value should be checked (aka, selected) initially or not. Can match zero or more elements.
                 -> Form m input error [XMLGenT x (XMLType x)] () [a]
 inputCheckboxes = C.inputCheckboxes
 
 -- | Create a group of @\<input type=\"radio\"\>@ elements
-inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
+inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
               [(a, lbl)]  -- ^ (value, label)
            -> (a -> Bool) -- ^ predicate which returns @True@ if @a@ should be initially checked. Must match exactly one value in the previous argument.
            -> Form m input error [XMLGenT x (XMLType x)] () a
@@ -140,14 +142,14 @@ inputRadio = C.inputRadio
 -- | Create an @\<input type=\"file\"\>@ element
 --
 -- This control may succeed even if the user does not actually select a file to upload. In that case the uploaded name will likely be \"\" and the file contents will be empty as well.
-inputFile :: (Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsAttr x (Attr String FormId)) =>
+inputFile :: (Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId)) =>
              Form m input error [XMLGenT x (XMLType x)] () (FileType input)
 inputFile = C.inputFile
 
 -- | create a  @\<button type=\"reset\"\>\<\/button\>@ element
 --
 -- This element does not add any data to the form data set.
-buttonReset :: ( Monad m, FormError error, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)
+buttonReset :: ( Monad m, FormError error, XMLGenerator x, StringType x ~ Text, EmbedAsChild x children , EmbedAsAttr x (Attr Text FormId)
                 ) =>
                children -- ^ children of the @<\/button\>@ element
              -> Form m input error [XMLGenT x (XMLType x)] () ()
@@ -156,7 +158,7 @@ buttonReset = C.buttonReset
 -- | create a  @\<button type=\"button\"\>\<\/button\>@ element
 --
 -- This element does not add any data to the form data set.
-button :: ( Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, EmbedAsChild x children , EmbedAsAttr x (Attr String FormId)) =>
+button :: ( Monad m, FormError error, FormInput input, ErrorInputType error ~ input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x children , EmbedAsAttr x (Attr Text FormId)) =>
           children -- ^ children to embed in the \<button\>
        -> Form m input error [XMLGenT x (XMLType x)] () ()
 button = C.button
@@ -164,7 +166,7 @@ button = C.button
 -- | create @\<select\>\<\/select\>@ element plus its @\<option\>\<\/option\>@ children.
 --
 -- see also: 'selectMultiple'
-select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
+select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
               [(a, lbl)]  -- ^ (value, label)
            -> (a -> Bool) -- ^ specifies which value is initially selected. Must match *exactly one* element in the list of choices
            -> Form m input error [XMLGenT x (XMLType x)] () a
@@ -173,7 +175,7 @@ select = C.select
 -- | create @\<select multiple=\"multiple\"\>\<\/select\>@ element plus its @\<option\>\<\/option\>@ children.
 --
 -- This creates a @\<select\>@ element which allows more than one item to be selected.
-selectMultiple :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, EmbedAsChild x lbl, EmbedAsAttr x (Attr String FormId)) =>
+selectMultiple :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
                   [(a, lbl)]  -- ^ (value, label)
                -> (a -> Bool) -- ^ specifies which values are initially selected. Can match 0 or more elements.
                -> Form m input error [XMLGenT x (XMLType x)] () [a]
@@ -186,7 +188,7 @@ selectMultiple = C.selectMultiple
 -- > label "some input field: " ++> inputText ""
 --
 -- see also: 'labelText'
-label :: (Monad m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x c) =>
+label :: (Monad m, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsChild x c) =>
          c
       -> Form m input error [XMLGenT x (XMLType x)] () ()
 label = C.label
@@ -202,7 +204,7 @@ label = C.label
 -- ambiguous type errors when attempting to apply 'label' to a string
 -- literal. While the type error can be fixed using an explicit type
 -- signature, calling 'labelText' looks nicer.
-labelText :: (Monad m, XMLGenerator x, EmbedAsAttr x (Attr String FormId), EmbedAsChild x Text) =>
+labelText :: (Monad m, XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text FormId), EmbedAsChild x Text) =>
          Text
       -> Form m input error [XMLGenT x (XMLType x)] () ()
 labelText = C.label
@@ -211,7 +213,7 @@ labelText = C.label
 -- | create a @\<ul\>@ which contains all the errors related to the 'Form'.
 --
 -- The @<\ul\>@ will have the attribute @class=\"reform-error-list\"@.
-errorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
+errorList :: (Monad m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x error) =>
              Form m input error [XMLGenT x (XMLType x)] () ()
 errorList = C.errorList
 
@@ -220,49 +222,49 @@ errorList = C.errorList
 -- Includes errors from children of the current form.
 --
 -- The @<\ul\>@ will have the attribute @class=\"reform-error-list\"@.
-childErrorList :: (Monad m, XMLGenerator x, EmbedAsChild x error) =>
+childErrorList :: (Monad m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x error) =>
              Form m input error [XMLGenT x (XMLType x)] () ()
 childErrorList = C.childErrorList
 
 -- | create a @\<br\>@ tag.
-br :: (Monad m, XMLGenerator x) => Form m input error [XMLGenT x (XMLType x)] () ()
+br :: (Monad m, XMLGenerator x, StringType x ~ Text) => Form m input error [XMLGenT x (XMLType x)] () ()
 br = C.br
 
 -- | wrap a @\<fieldset class=\"reform\"\>@ around a 'Form'
 --
-fieldset :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+fieldset :: (Monad m, Functor m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x c) =>
             Form m input error c proof a
          -> Form m input error [XMLGenT x (XMLType x)] proof a
 fieldset = C.fieldset
 
 -- | wrap an @\<ol class=\"reform\"\>@ around a 'Form'
-ol :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+ol :: (Monad m, Functor m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
 ol = C.ol
 
 -- | wrap a @\<ul class=\"reform\"\>@ around a 'Form'
-ul :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+ul :: (Monad m, Functor m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
 ul = C.ul
 
 -- | wrap a @\<li class=\"reform\"\>@ around a 'Form'
-li :: (Monad m, Functor m, XMLGenerator x, EmbedAsChild x c) =>
+li :: (Monad m, Functor m, XMLGenerator x, StringType x ~ Text, EmbedAsChild x c) =>
       Form m input error c proof a
    -> Form m input error [XMLGenT x (XMLType x)] proof a
 li = C.li
 
 -- | create @\<form action=action method=\"POST\" enctype=\"multipart/form-data\"\>@
-form :: (XMLGenerator x, EmbedAsAttr x (Attr String action)) =>
+form :: (XMLGenerator x, StringType x ~ Text, EmbedAsAttr x (Attr Text action)) =>
         action                  -- ^ action url
-     -> [(String,String)]       -- ^ extra hidden fields to add to form
+     -> [(Text,Text)]       -- ^ extra hidden fields to add to form
      -> [XMLGenT x (XMLType x)] -- ^ children
      -> [XMLGenT x (XMLType x)]
 form = C.form
 
 -- | set the attributes on the top-level elements of 'Form'
-setAttrs :: (EmbedAsAttr x attr, XMLGenerator x, Monad m, Functor m) =>
+setAttrs :: (EmbedAsAttr x attr, XMLGenerator x, StringType x ~ Text, Monad m, Functor m) =>
             Form m input error [XMLGenT x (XMLType x)] proof a
          -> attr
          -> Form m input error [GenXML x] proof a
