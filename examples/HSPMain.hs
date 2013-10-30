@@ -1,17 +1,24 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, TypeFamilies #-}
-{-# OPTIONS_GHC -F -pgmFtrhsx #-}
+{-# OPTIONS_GHC -F -pgmFhsx2hs #-}
 module Main where
 
+import Control.Applicative.Indexed
 import Control.Monad
 import qualified Data.ByteString.Char8 as C
-import Text.Blaze ((!), Html)
+import Data.Text.Lazy (Text)
+import Text.Blaze.Html ((!), Html)
 import Text.Reform
 import Text.Reform.HSP.String
 import Text.Reform.Happstack
-import HSP.ServerPartT
+import HSP
+import HSP.Monad
 import Happstack.Server
 import Happstack.Server.HSP.HTML
 import SharedForm
+
+type Server = HSPT XML (ServerPartT IO)
+type ServerForm = Form Server [Input] (DemoFormError [Input]) [XMLGenT Server XML]
+
 
 instance (XMLGenerator x) => EmbedAsChild x (DemoFormError [Input]) where
     asChild InvalidEmail    = <%>Email address must contain a @.</%>
@@ -20,34 +27,32 @@ instance (XMLGenerator x) => EmbedAsChild x (DemoFormError [Input]) where
     asChild (CommonError (NoStringFound input))     = <%>Internal Error. Could not extract a String from: <% show input %></%>
     asChild (CommonError (MultiStringsFound input)) = <%>Internal Error. Found more than one String in: <% show input %></%>
 
-usernameForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
-                String
-             -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] NotNull Username
+instance EmbedAsAttr Server (Attr Text String)
+
+usernameForm :: String
+             -> ServerForm NotNull Username
 usernameForm initialValue =
     errorList ++> (label "username: " ++> (Username <<$>> inputText initialValue `prove` (notNullProof InvalidUsername)))
 
-emailForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
-             String
-          -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] ValidEmail Email
+emailForm :: String
+          -> ServerForm ValidEmail Email
 emailForm initialValue    =
     errorList ++> (label "email: " ++> (Email    <<$>> inputText initialValue `prove` (validEmailProof InvalidEmail)))
 
-userForm :: (XMLGenerator x, EmbedAsAttr x (Attr String FormId), Monad m, FormInput input, EmbedAsChild x (DemoFormError input)) =>
-            String -- ^ initial username
+userForm :: String -- ^ initial username
          -> String -- ^ initial email
-         -> Form m input (DemoFormError input) [XMLGenT x (XMLType x)] ValidUser User
+         -> ServerForm ValidUser User
 userForm nm eml = mkUser <<*>> (usernameForm nm) <<*>> (emailForm eml)
 
-hsxForm :: (XMLGenerator x) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
+hsxForm :: (XMLGenerator x, StringType x ~ Text) => [XMLGenT x (XMLType x)] -> [XMLGenT x (XMLType x)]
 hsxForm html =
     [<form action="/" method="POST" enctype="multipart/form-data">
       <% html %>
       <input type="submit" />
      </form>]
 
-formHandler :: (EmbedAsChild (ServerPartT IO) error, Show a) =>
-               Form (ServerPartT IO) [Input] error [XMLGenT (ServerPartT IO) XML] proof a
-            -> ServerPart Response
+formHandler :: ServerForm proof a
+            -> Server Response
 formHandler form =
         msum [ do method GET
                   formHtml <- viewForm "user" form
@@ -63,7 +68,7 @@ formHandler form =
                            ok $ toResponse $ html
 
              ]
-
+{-
 main :: IO ()
 main =
     do let form = userForm "" ""
@@ -89,4 +94,4 @@ main =
     do let form = userForm "" ""
        simpleHTTP nullConf $ do decodeBody (defaultBodyPolicy "/tmp" 0 10000 10000)
                                 formHandler form
--}
+-}-}
