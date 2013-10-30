@@ -15,6 +15,7 @@ module Text.Reform.HSP.Text
     , inputCheckbox
     , inputCheckboxes
     , inputRadio
+    , inputRadioForms
     , inputFile
       -- * \<textarea\> element
     , textarea
@@ -138,6 +139,12 @@ inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input
            -> (a -> Bool) -- ^ predicate which returns @True@ if @a@ should be initially checked. Must match exactly one value in the previous argument.
            -> Form m input error [XMLGenT x (XMLType x)] () a
 inputRadio = C.inputRadio
+
+inputRadioForms :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
+              [(Form m input error [XMLGenT x (XMLType x)] () a, lbl)]  -- ^ value, label, initially checked
+           -> a -- ^ default
+           -> Form m input error [XMLGenT x (XMLType x)] () a
+inputRadioForms = C.inputRadioForms
 
 -- | Create an @\<input type=\"file\"\>@ element
 --
