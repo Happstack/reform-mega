@@ -2,6 +2,8 @@
 {-# OPTIONS_GHC -F -pgmFhsx2hs #-}
 module Text.Reform.HSP.Common where
 
+import Data.List      (intercalate)
+import Data.Monoid    ((<>), mconcat)
 import Data.Text.Lazy (Text, pack)
 import qualified Data.Text as T
 import Text.Reform.Backend
@@ -163,22 +165,54 @@ inputRadio choices isDefault =
              , <br />
              ]
 
-inputRadioForms :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
-              [(Form m input error [XMLGenT x (XMLType x)] () a, lbl)]  -- ^ value, label, initially checked
-           -> a -- ^ default
-           -> Form m input error [XMLGenT x (XMLType x)] () a
+inputRadioForms :: forall m x error input lbl proof a. (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
+                   [(Form m input error [XMLGenT x (XMLType x)] proof a, lbl)]  -- ^ value, label, initially checked
+                 -> a -- ^ default
+                 -> Form m input error [XMLGenT x (XMLType x)] proof a
 inputRadioForms choices def =
+    inputRadioForms' onclick choices def
+    where
+      formIdsJS :: [FormId] -> Text
+      formIdsJS [] = "[]"
+      formIdsJS ids =
+          "['" <> (pack $ intercalate "', '" $ map show ids) <> "']"
+
+      onclick :: FormId -> FormId -> [FormId] -> Text
+      onclick nm iview iviews = mconcat
+                [ "var views = " <> formIdsJS iviews <> ";"
+                , "var iview = '" <> (pack $ show iview) <> "';"
+                , "for (var i = 0; i < views.length; i++) {"
+                , "  if (iview == views[i]) {"
+                , "    document.getElementById(iview).style.display='block';"
+                , "  } else {"
+                , "    document.getElementById(views[i]).style.display='none';"
+                , "  }"
+                , "}"
+                ]
+
+inputRadioForms' :: forall m x error input lbl proof a. (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
+                    (FormId -> FormId -> [FormId] -> Text)
+                 -> [(Form m input error [XMLGenT x (XMLType x)] proof a, lbl)]  -- ^ value, label, initially checked
+                 -> a -- ^ default
+                 -> Form m input error [XMLGenT x (XMLType x)] proof a
+inputRadioForms' onclick choices def =
     G.inputChoiceForms def choices mkRadios
     where
-      mkRadios nm choices' = concatMap (mkRadio nm) choices'
-      mkRadio nm (i, val, view, lbl, checked) =
-             [ <input type="radio" id=i name=nm value=(pack $ show val) (if checked then [("checked" := "checked") :: Attr Text Text] else []) />
-             , <label for=i><% lbl %></label>
-             , <br />
-             ] ++ view ++ [
-               <br />
-             ]
+      iviewsExtract :: [(FormId, Int, FormId, [XMLGenT x (XMLType x)], lbl, Bool)] -> [FormId]
+      iviewsExtract = map (\(_,_, iv, _, _, _) -> iv)
 
+      mkRadios :: FormId -> [(FormId, Int, FormId, [XMLGenT x (XMLType x)], lbl, Bool)] -> [XMLGenT x (XMLType x)]
+      mkRadios nm choices' =
+          let iviews = iviewsExtract choices' in
+          (concatMap (mkRadio nm iviews) choices')
+
+      mkRadio nm iviews (i, val, iview, view, lbl, checked) =
+             [ <div>
+                <input type="radio" onclick=(onclick nm iview iviews) id=i name=nm value=(pack $ show val) (if checked then [("checked" := "checked") :: Attr Text Text] else []) />
+               <label for=i><% lbl %></label>
+               <div id=iview (if checked then [] else [("style" := "display:none;") :: Attr Text Text])><% view %></div>
+              </div>
+             ]
 
 select :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
               [(a, lbl)]  -- ^ value, label

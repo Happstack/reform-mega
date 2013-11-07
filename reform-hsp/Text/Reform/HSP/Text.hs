@@ -140,10 +140,11 @@ inputRadio :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input
            -> Form m input error [XMLGenT x (XMLType x)] () a
 inputRadio = C.inputRadio
 
+-- | Create a group of radio buttons that select between sub-forms
 inputRadioForms :: (Functor m, Monad m, FormError error, ErrorInputType error ~ input, FormInput input, XMLGenerator x, StringType x ~ Text, EmbedAsChild x lbl, EmbedAsAttr x (Attr Text FormId)) =>
-              [(Form m input error [XMLGenT x (XMLType x)] () a, lbl)]  -- ^ value, label, initially checked
+              [(Form m input error [XMLGenT x (XMLType x)] proof a, lbl)]  -- ^ value, label, initially checked
            -> a -- ^ default
-           -> Form m input error [XMLGenT x (XMLType x)] () a
+           -> Form m input error [XMLGenT x (XMLType x)] proof a
 inputRadioForms = C.inputRadioForms
 
 -- | Create an @\<input type=\"file\"\>@ element
