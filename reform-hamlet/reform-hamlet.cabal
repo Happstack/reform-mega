@@ -1,5 +1,5 @@
 Name:                reform-hamlet
-Version:             0.0.3
+Version:             0.0.4
 Synopsis:            Add support for using Hamlet with Reform
 Description:         Reform is a library for building and validating forms using applicative functors. This package add support for using reform with Hamlet.
 Homepage:            http://www.happstack.com/
@@ -25,4 +25,4 @@ Library
                        blaze-markup > 0.5   && < 0.7,
                        shakespeare  >= 2.0  && < 2.1,
                        reform       == 0.2.*,
-                       text         >= 0.11 && < 1.2
+                       text         >= 0.11 && < 1.3
