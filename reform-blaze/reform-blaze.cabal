@@ -1,5 +1,5 @@
 Name:                reform-blaze
-Version:             0.2.3
+Version:             0.2.4
 Synopsis:            Add support for using blaze-html with Reform
 Description:         Reform is a library for building and validating forms using applicative functors. This package add support for using reform with blaze-html.
 Homepage:            http://www.happstack.com/
@@ -23,7 +23,7 @@ Library
                      Text.Reform.Blaze.Text
 
   Build-depends:     base         >4 && <5,
-                     blaze-markup >= 0.5 && < 0.7,
-                     blaze-html   >= 0.5 && < 0.8,
+                     blaze-markup >= 0.5 && < 0.8,
+                     blaze-html   >= 0.5 && < 0.9,
                      reform       == 0.2.*,
                      text         >= 0.11 && < 1.3
